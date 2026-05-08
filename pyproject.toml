@@ -1,0 +1,11 @@
+[project]
+name = "investingscripts"
+version = "0.1.0"
+description = "Investing scripts."
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "requests",
+    "pandas",
+    "numpy"
+]
