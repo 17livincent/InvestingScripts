@@ -4,7 +4,6 @@
 
 import requests
 import subprocess
-import json
 
 result = subprocess.run(['pass', 'show', 'Keys/AlphaVantage'], capture_output=True, text=True)
 key = result.stdout

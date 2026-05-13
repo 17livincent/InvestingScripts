@@ -7,5 +7,6 @@ requires-python = ">=3.12"
 dependencies = [
     "requests",
     "pandas",
-    "numpy"
+    "numpy",
+    "matplotlib"
 ]
