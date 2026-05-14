@@ -25,8 +25,6 @@ def get_fundamentals(ticker):
                                          quarterly_report in income_statement['quarterlyReports']]
         df_data_income_statement['OperatingIncome'] = [quarterly_report['operatingIncome'] for 
                                          quarterly_report in income_statement['quarterlyReports']]
-        df_data_income_statement['EBIT'] = [quarterly_report['ebit'] for
-                                            quarterly_report in income_statement['quarterlyReports']]
         df_data_income_statement['IncomeBeforeTax'] = [quarterly_report['incomeBeforeTax'] for
                                                        quarterly_report in income_statement['quarterlyReports']]
         df_data_income_statement['IncomeTaxExpense'] = [quarterly_report['incomeTaxExpense'] for
@@ -60,17 +58,15 @@ def get_fundamentals(ticker):
     df_merged = pd.merge(df_merge1, df_cash_flow, on='Date')
 
     df_sorted = df_merged.sort_values(by='Date', ascending=True)
+    df_sorted['Date'] = pd.to_datetime(df_sorted['Date'])
 
     for column_name in df_sorted:
         if column_name != 'Date':
-            df_sorted[column_name] = df_sorted[column_name].replace('None', 0).astype(int)
-
-    df_sorted['TotalShareholderEquity'] = df_sorted['TotalShareholderEquity'].replace('None', 0)
-    df_sorted['TotalDebt'] = df_sorted['TotalDebt'].replace('None', 0)
+            df_sorted[column_name] = pd.to_numeric(df_sorted[column_name], errors='coerce').fillna(0)
 
     df_calculated = pd.DataFrame()
     df_calculated['Date'] = df_sorted['Date']
-    
+
     # Calculate debt-to-equity
     df_calculated['DebtToEquity'] = np.where(df_sorted['TotalShareholderEquity'] > 0,
                                              df_sorted['TotalDebt'] / df_sorted['TotalShareholderEquity'],
@@ -85,7 +81,7 @@ def get_fundamentals(ticker):
     df_calculated['FreeCashFlow'] = df_sorted['OperatingCashFlow'] - df_sorted['CapEx']
 
     # Calculate gross margin
-    df_calculated['GrossMargin'] = (df_sorted['TotalRevenue'] - df_sorted['CostOfRevenue']) / df_sorted['TotalRevenue']
+    df_calculated['GrossMargin_Quarterly'] = (df_sorted['TotalRevenue'] - df_sorted['CostOfRevenue']) / df_sorted['TotalRevenue']
 
     # Calculate operating margin
     df_calculated['OperatingMargin'] = df_sorted['OperatingIncome'] / df_sorted['TotalRevenue']
@@ -101,6 +97,34 @@ def get_fundamentals(ticker):
     df_calculated['NOPAT'] = df_sorted['OperatingIncome'] * (1 - df_calculated['EffectiveTaxRate'])
     df_calculated['ROIC'] = df_calculated['NOPAT'] / df_calculated['InvestedCapital']
 
+    # Calculate revenue growth YoY
+    df_calculated['RevenueGrowth_YoY'] = df_sorted['TotalRevenue'].pct_change(periods=4)
+
+    # Calculate OCF margin
+    df_calculated['OCFMargin'] = df_sorted['OperatingCashFlow'] /df_sorted['TotalRevenue']
+    
+    # Calculate free cash flow margin
+    df_calculated['FCFMargin'] = df_calculated['FreeCashFlow'] / df_sorted['TotalRevenue']
+
+    # TTM metrics
+    df_calculated['TTM_TotalRevenue'] = df_sorted['TotalRevenue'].rolling(4).sum()
+    df_calculated['TTM_NetIncome'] = df_sorted['NetIncome'].rolling(4).sum()
+    df_calculated['TTM_OperatingIncome'] = df_sorted['OperatingIncome'].rolling(4).sum()
+    df_calculated['TTM_CapEx'] = df_sorted['CapEx'].rolling(4).sum()
+    df_calculated['TTM_NOPAT'] = df_calculated['NOPAT'].rolling(4).sum()
+    df_calculated['AverageInvestedCapital'] = df_calculated['InvestedCapital'].rolling(4).mean()
+    df_calculated['TTM_ROIC'] = df_calculated['TTM_NOPAT'] / df_calculated['AverageInvestedCapital']
+    df_calculated['TTM_FreeCashFlow'] = df_calculated['FreeCashFlow'].rolling(4).sum()
+    df_calculated['TTM_GrossMargin'] = ((df_sorted['TotalRevenue'].rolling(4).sum() - df_sorted['CostOfRevenue'].rolling(4).sum()) / 
+                                        df_sorted['TotalRevenue'].rolling(4).sum())
+    df_calculated['TTM_OperatingCashFlow'] = df_sorted['OperatingCashFlow'].rolling(4).sum()
+    df_calculated['TTM_OCFMargin'] = (df_calculated['TTM_OperatingCashFlow'] / 
+                                          df_calculated['TTM_TotalRevenue'])
+    df_calculated['TTM_FCFMargin'] = (df_calculated['TTM_FreeCashFlow'] /
+                                          df_calculated['TTM_TotalRevenue'])
+    df_calculated['TTM_OperatingMargin'] = df_calculated['TTM_OperatingIncome'] / df_calculated['TTM_TotalRevenue']
+    df_calculated['TTM_NetMargin'] = df_calculated['TTM_NetIncome'] / df_calculated['TTM_TotalRevenue']
+
     return df_sorted, df_calculated
 
 def main():
@@ -110,17 +134,11 @@ def main():
     args = parser.parse_args()
     print("Stock ticker: {}".format(args.ticker))
     df_fundamentals, df_calculated = get_fundamentals(args.ticker)
-    print(df_calculated['ROIC'])
-    print(df_calculated)
 
-    print(df_calculated.loc[df_calculated['ROIC'] == 0])
-
-    fig, ax = plt.subplots(2, 4)
-    df_fundamentals.plot(ax=ax[0, 0], kind='line', x='Date', y='TotalRevenue', title='TotalRevenue', grid=True)
-    df_calculated.plot(ax=ax[0, 1], kind='line', x='Date', y='DebtToEquity', title='DebtToEquity', grid=True)
-    df_calculated.plot(ax=ax[0, 2], kind='line', x='Date', y='ReturnOnEquity', title='ReturnOnEquity', grid=True)
-    df_calculated.plot(ax=ax[0, 3], kind='line', x='Date', y='FreeCashFlow', title='FreeCashFlow', grid=True)
+    fig, ax = plt.subplots()
+    df_calculated.plot(ax=ax, kind='line', x='Date', y='TTM_ROIC', title='TTM_ROIC', grid=True)
     print(df_calculated.columns.tolist())
+    print(df_calculated.tail())
     plt.show()
 
 if __name__ == "__main__":
