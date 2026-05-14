@@ -5,6 +5,8 @@ import json
 import requests
 import subprocess
 from pathlib import Path
+import time
+import argparse
 
 def request_and_save_json(function, symbol):
     '''
@@ -23,4 +25,19 @@ def request_and_save_json(function, symbol):
         with open('data/{}/{}.json'.format(symbol, function), 'w') as export_json_file:
             json.dump(data, export_json_file, indent=4)
 
-request_and_save_json('CASH_FLOW', 'SNDK')
+def main():
+    parser = argparse.ArgumentParser(prog='RequestAndSave.py', description='Get data from AlphaVantage.')
+    parser.add_argument('-t', '--ticker', required=True, help='Stock ticker')
+
+    args = parser.parse_args()
+    print("Stock ticker: {}".format(args.ticker))
+    request_and_save_json('CASH_FLOW', args.ticker)
+    time.sleep(1)
+    request_and_save_json('BALANCE_SHEET', args.ticker)
+    time.sleep(1)
+    request_and_save_json('INCOME_STATEMENT', args.ticker)
+
+if __name__ == "__main__":
+    main()
+
+
