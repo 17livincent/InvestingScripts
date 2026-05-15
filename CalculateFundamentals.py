@@ -22,15 +22,15 @@ def get_fundamentals(ticker):
     with open('data/{}/INCOME_STATEMENT.json'.format(ticker)) as income_statement_json:
         income_statement = json.load(income_statement_json)
         df_data_income_statement['Date'] = [quarterly_report['fiscalDateEnding'] for 
-                                         quarterly_report in income_statement['quarterlyReports']]
+                                            quarterly_report in income_statement['quarterlyReports']]
         df_data_income_statement['TotalRevenue'] = [quarterly_report['totalRevenue'] for 
-                                         quarterly_report in income_statement['quarterlyReports']]
+                                                    quarterly_report in income_statement['quarterlyReports']]
         df_data_income_statement['CostOfRevenue'] = [quarterly_report['costOfRevenue'] for 
-                                         quarterly_report in income_statement['quarterlyReports']]
+                                                     quarterly_report in income_statement['quarterlyReports']]
         df_data_income_statement['NetIncome'] = [quarterly_report['netIncome'] for 
-                                         quarterly_report in income_statement['quarterlyReports']]
+                                                 quarterly_report in income_statement['quarterlyReports']]
         df_data_income_statement['OperatingIncome'] = [quarterly_report['operatingIncome'] for 
-                                         quarterly_report in income_statement['quarterlyReports']]
+                                                       quarterly_report in income_statement['quarterlyReports']]
         df_data_income_statement['IncomeBeforeTax'] = [quarterly_report['incomeBeforeTax'] for
                                                        quarterly_report in income_statement['quarterlyReports']]
         df_data_income_statement['IncomeTaxExpense'] = [quarterly_report['incomeTaxExpense'] for
@@ -43,11 +43,11 @@ def get_fundamentals(ticker):
         df_data_balance_sheet['Date'] = [quarterly_report['fiscalDateEnding'] for 
                                          quarterly_report in balance_sheet['quarterlyReports']]
         df_data_balance_sheet['TotalShareholderEquity'] = [quarterly_report['totalShareholderEquity'] for 
-                                         quarterly_report in balance_sheet['quarterlyReports']]
+                                                           quarterly_report in balance_sheet['quarterlyReports']]
         df_data_balance_sheet['TotalDebt'] = [quarterly_report['shortLongTermDebtTotal'] for 
-                                         quarterly_report in balance_sheet['quarterlyReports']]
+                                              quarterly_report in balance_sheet['quarterlyReports']]
         df_data_balance_sheet['Cash'] = [quarterly_report['cashAndCashEquivalentsAtCarryingValue'] for
-                                                          quarterly_report in balance_sheet['quarterlyReports']]
+                                         quarterly_report in balance_sheet['quarterlyReports']]
 
     df_cash_flow = pd.DataFrame()
 
@@ -127,7 +127,8 @@ def get_fundamentals(ticker):
     df_calculated['TTM_OperatingMargin'] = df_calculated['TTM_OperatingIncome'] / df_calculated['TTM_TotalRevenue']
     df_calculated['TTM_NetMargin'] = df_calculated['TTM_NetIncome'] / df_calculated['TTM_TotalRevenue']
 
-    return df_sorted, df_calculated
+    df_combined = pd.concat([df_sorted, df_calculated.drop(columns=['Date'])], axis=1)
+    return df_combined
 
 def get_latest_metrics(df_calculated, ticker):
     latest = df_calculated.iloc[-1]
@@ -142,15 +143,18 @@ def get_latest_metrics(df_calculated, ticker):
         'DebtToEquity': latest['DebtToEquity']
     }
 
+def get_and_save_fundamentals(ticker):
+    df_calculated = get_fundamentals(ticker)
+    df_calculated.to_csv('data/{}/calculated_fundamentals.csv'.format(ticker), index=False)
+    return df_calculated
+
 def main():
     parser = argparse.ArgumentParser(prog='CalculateFundamentals.py', description='Analyze a company\'s fundamentals.')
     parser.add_argument('-t', '--ticker', required=True, help='Stock ticker')
 
     args = parser.parse_args()
     print("Stock ticker: {}".format(args.ticker))
-    df_fundamentals, df_calculated = get_fundamentals(args.ticker)
-
-    df_calculated.to_csv('data/{}/calculated_fundamentals.csv'.format(args.ticker), index=False)
+    df_calculated = get_and_save_fundamentals(args.ticker)
 
     fig, ax = plt.subplots(figsize=(12, 6))
     df_calculated.plot(ax=ax, kind='line', x='Date', y='TTM_ROIC', title='TTM_ROIC', grid=True)
