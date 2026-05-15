@@ -147,6 +147,7 @@ def get_latest_metrics(df_calculated, ticker):
 
 def get_and_save_fundamentals(ticker):
     df_calculated = get_fundamentals(ticker)
+    print("Saving to CSV: {}", ticker)
     df_calculated.to_csv(CALCULATED_FUNDAMENTALS_PATH.format(ticker), index=False)
     return df_calculated
 

@@ -7,6 +7,7 @@ import subprocess
 from pathlib import Path
 import time
 import argparse
+from CalculateFundamentals import get_and_save_fundamentals
 
 functions = ['CASH_FLOW', 'BALANCE_SHEET', 'INCOME_STATEMENT']
 
@@ -37,6 +38,8 @@ def main():
         print("Requesting {} data...".format(function_name))
         time.sleep(1)
         request_and_save_json(function_name, args.ticker)
+
+    get_and_save_fundamentals(args.ticker)
 
 if __name__ == "__main__":
     main()
