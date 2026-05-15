@@ -128,12 +128,14 @@ def get_fundamentals(ticker):
     return df_sorted, df_calculated
 
 def main():
-    parser = argparse.ArgumentParser(prog='FundamentalsAnalysis.py', description='Analyze a company\'s fundamentals.')
+    parser = argparse.ArgumentParser(prog='CalculateFundamentals.py', description='Analyze a company\'s fundamentals.')
     parser.add_argument('-t', '--ticker', required=True, help='Stock ticker')
 
     args = parser.parse_args()
     print("Stock ticker: {}".format(args.ticker))
     df_fundamentals, df_calculated = get_fundamentals(args.ticker)
+
+    df_calculated.to_csv('data/{}/calculated_fundamentals.csv'.format(args.ticker), index=False)
 
     fig, ax = plt.subplots()
     df_calculated.plot(ax=ax, kind='line', x='Date', y='TTM_ROIC', title='TTM_ROIC', grid=True)
