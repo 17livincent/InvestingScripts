@@ -1,5 +1,5 @@
 '''
-    Given data from data/<ticker>/INCOME_STATEMENT.json, 
+    Given data from data/<ticker>/INCOME_STATEMENT.json,
     data/<ticker>/BALANCE_SHEET.json, and data/<ticker>/CASH_FLOW.json,
     calculate DEB, ROE, and FCF.
 '''
@@ -9,6 +9,8 @@ import pandas as pd
 import numpy as np
 import argparse
 import matplotlib.pyplot as plt
+
+CALCULATED_FUNDAMENTALS_PATH = 'data/{}/calculated_fundamentals.csv'
 
 def compute_ttm(series):
     return series.rolling(4).sum()
@@ -21,15 +23,15 @@ def get_fundamentals(ticker):
 
     with open('data/{}/INCOME_STATEMENT.json'.format(ticker)) as income_statement_json:
         income_statement = json.load(income_statement_json)
-        df_data_income_statement['Date'] = [quarterly_report['fiscalDateEnding'] for 
+        df_data_income_statement['Date'] = [quarterly_report['fiscalDateEnding'] for
                                             quarterly_report in income_statement['quarterlyReports']]
-        df_data_income_statement['TotalRevenue'] = [quarterly_report['totalRevenue'] for 
+        df_data_income_statement['TotalRevenue'] = [quarterly_report['totalRevenue'] for
                                                     quarterly_report in income_statement['quarterlyReports']]
-        df_data_income_statement['CostOfRevenue'] = [quarterly_report['costOfRevenue'] for 
+        df_data_income_statement['CostOfRevenue'] = [quarterly_report['costOfRevenue'] for
                                                      quarterly_report in income_statement['quarterlyReports']]
-        df_data_income_statement['NetIncome'] = [quarterly_report['netIncome'] for 
+        df_data_income_statement['NetIncome'] = [quarterly_report['netIncome'] for
                                                  quarterly_report in income_statement['quarterlyReports']]
-        df_data_income_statement['OperatingIncome'] = [quarterly_report['operatingIncome'] for 
+        df_data_income_statement['OperatingIncome'] = [quarterly_report['operatingIncome'] for
                                                        quarterly_report in income_statement['quarterlyReports']]
         df_data_income_statement['IncomeBeforeTax'] = [quarterly_report['incomeBeforeTax'] for
                                                        quarterly_report in income_statement['quarterlyReports']]
@@ -40,11 +42,11 @@ def get_fundamentals(ticker):
 
     with open('data/{}/BALANCE_SHEET.json'.format(ticker)) as balance_sheet_json:
         balance_sheet = json.load(balance_sheet_json)
-        df_data_balance_sheet['Date'] = [quarterly_report['fiscalDateEnding'] for 
+        df_data_balance_sheet['Date'] = [quarterly_report['fiscalDateEnding'] for
                                          quarterly_report in balance_sheet['quarterlyReports']]
-        df_data_balance_sheet['TotalShareholderEquity'] = [quarterly_report['totalShareholderEquity'] for 
+        df_data_balance_sheet['TotalShareholderEquity'] = [quarterly_report['totalShareholderEquity'] for
                                                            quarterly_report in balance_sheet['quarterlyReports']]
-        df_data_balance_sheet['TotalDebt'] = [quarterly_report['shortLongTermDebtTotal'] for 
+        df_data_balance_sheet['TotalDebt'] = [quarterly_report['shortLongTermDebtTotal'] for
                                               quarterly_report in balance_sheet['quarterlyReports']]
         df_data_balance_sheet['Cash'] = [quarterly_report['cashAndCashEquivalentsAtCarryingValue'] for
                                          quarterly_report in balance_sheet['quarterlyReports']]
@@ -53,11 +55,11 @@ def get_fundamentals(ticker):
 
     with open('data/{}/CASH_FLOW.json'.format(ticker)) as cash_flow_json:
         cash_flow = json.load(cash_flow_json)
-        df_cash_flow['Date'] = [quarterly_report['fiscalDateEnding'] for 
+        df_cash_flow['Date'] = [quarterly_report['fiscalDateEnding'] for
                                          quarterly_report in cash_flow['quarterlyReports']]
-        df_cash_flow['OperatingCashFlow'] = [quarterly_report['operatingCashflow'] for 
+        df_cash_flow['OperatingCashFlow'] = [quarterly_report['operatingCashflow'] for
                                          quarterly_report in cash_flow['quarterlyReports']]
-        df_cash_flow['CapEx'] = [quarterly_report['capitalExpenditures'] for 
+        df_cash_flow['CapEx'] = [quarterly_report['capitalExpenditures'] for
                                          quarterly_report in cash_flow['quarterlyReports']]
 
     df_merge1 = pd.merge(df_data_income_statement, df_data_balance_sheet, on='Date')
@@ -104,7 +106,7 @@ def get_fundamentals(ticker):
 
     # Calculate OCF margin
     df_calculated['OCFMargin'] = df_sorted['OperatingCashFlow'] /df_sorted['TotalRevenue']
-    
+
     # Calculate free cash flow margin
     df_calculated['FCFMargin'] = df_calculated['FreeCashFlow'] / df_sorted['TotalRevenue']
 
@@ -117,10 +119,10 @@ def get_fundamentals(ticker):
     df_calculated['AverageInvestedCapital'] = df_calculated['InvestedCapital'].rolling(4).mean()
     df_calculated['TTM_ROIC'] = df_calculated['TTM_NOPAT'] / df_calculated['AverageInvestedCapital']
     df_calculated['TTM_FreeCashFlow'] = compute_ttm(df_calculated['FreeCashFlow'])
-    df_calculated['TTM_GrossMargin'] = ((compute_ttm(df_sorted['TotalRevenue']) - compute_ttm(df_sorted['CostOfRevenue'])) / 
+    df_calculated['TTM_GrossMargin'] = ((compute_ttm(df_sorted['TotalRevenue']) - compute_ttm(df_sorted['CostOfRevenue'])) /
                                         compute_ttm(df_sorted['TotalRevenue']))
     df_calculated['TTM_OperatingCashFlow'] = compute_ttm(df_sorted['OperatingCashFlow'])
-    df_calculated['TTM_OCFMargin'] = (df_calculated['TTM_OperatingCashFlow'] / 
+    df_calculated['TTM_OCFMargin'] = (df_calculated['TTM_OperatingCashFlow'] /
                                           df_calculated['TTM_TotalRevenue'])
     df_calculated['TTM_FCFMargin'] = (df_calculated['TTM_FreeCashFlow'] /
                                           df_calculated['TTM_TotalRevenue'])
@@ -145,8 +147,13 @@ def get_latest_metrics(df_calculated, ticker):
 
 def get_and_save_fundamentals(ticker):
     df_calculated = get_fundamentals(ticker)
-    df_calculated.to_csv('data/{}/calculated_fundamentals.csv'.format(ticker), index=False)
+    df_calculated.to_csv(CALCULATED_FUNDAMENTALS_PATH.format(ticker), index=False)
     return df_calculated
+
+def read_saved_fundamentals(ticker):
+    df_fundamentals = pd.read_csv(CALCULATED_FUNDAMENTALS_PATH.format(ticker))
+    df_fundamentals['Date'] = pd.to_datetime(df_fundamentals['Date'])
+    return df_fundamentals
 
 def main():
     parser = argparse.ArgumentParser(prog='CalculateFundamentals.py', description='Analyze a company\'s fundamentals.')
