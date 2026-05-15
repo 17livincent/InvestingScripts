@@ -35,6 +35,7 @@ def main():
     print("Stock ticker: {}".format(args.ticker))
     for function_name in functions:
         print("Requesting {} data...".format(function_name))
+        time.sleep(1)
         request_and_save_json(function_name, args.ticker)
 
 if __name__ == "__main__":
