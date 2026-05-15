@@ -10,6 +10,12 @@ import numpy as np
 import argparse
 import matplotlib.pyplot as plt
 
+def compute_ttm(series):
+    return series.rolling(4).sum()
+
+def safe_divide(a, b):
+    return np.where(b != 0, a / b, np.nan)
+
 def get_fundamentals(ticker):
     df_data_income_statement = pd.DataFrame()
 
@@ -68,14 +74,10 @@ def get_fundamentals(ticker):
     df_calculated['Date'] = df_sorted['Date']
 
     # Calculate debt-to-equity
-    df_calculated['DebtToEquity'] = np.where(df_sorted['TotalShareholderEquity'] > 0,
-                                             df_sorted['TotalDebt'] / df_sorted['TotalShareholderEquity'],
-                                             np.nan)
+    df_calculated['DebtToEquity'] = safe_divide(df_sorted['TotalDebt'], df_sorted['TotalShareholderEquity'])
 
     # Calculate return-on-equity
-    df_calculated['ReturnOnEquity'] = np.where(df_sorted['TotalShareholderEquity'] > 0,
-                                               df_sorted['NetIncome'] / df_sorted['TotalShareholderEquity'],
-                                               np.nan)
+    df_calculated['ReturnOnEquity'] = safe_divide(df_sorted['NetIncome'], df_sorted['TotalShareholderEquity'])
 
     # Calculate free cash flow
     df_calculated['FreeCashFlow'] = df_sorted['OperatingCashFlow'] - df_sorted['CapEx']
@@ -107,17 +109,17 @@ def get_fundamentals(ticker):
     df_calculated['FCFMargin'] = df_calculated['FreeCashFlow'] / df_sorted['TotalRevenue']
 
     # TTM metrics
-    df_calculated['TTM_TotalRevenue'] = df_sorted['TotalRevenue'].rolling(4).sum()
-    df_calculated['TTM_NetIncome'] = df_sorted['NetIncome'].rolling(4).sum()
-    df_calculated['TTM_OperatingIncome'] = df_sorted['OperatingIncome'].rolling(4).sum()
-    df_calculated['TTM_CapEx'] = df_sorted['CapEx'].rolling(4).sum()
-    df_calculated['TTM_NOPAT'] = df_calculated['NOPAT'].rolling(4).sum()
+    df_calculated['TTM_TotalRevenue'] = compute_ttm(df_sorted['TotalRevenue'])
+    df_calculated['TTM_NetIncome'] = compute_ttm(df_sorted['NetIncome'])
+    df_calculated['TTM_OperatingIncome'] = compute_ttm(df_sorted['OperatingIncome'])
+    df_calculated['TTM_CapEx'] = compute_ttm(df_sorted['CapEx'])
+    df_calculated['TTM_NOPAT'] = compute_ttm(df_calculated['NOPAT'])
     df_calculated['AverageInvestedCapital'] = df_calculated['InvestedCapital'].rolling(4).mean()
     df_calculated['TTM_ROIC'] = df_calculated['TTM_NOPAT'] / df_calculated['AverageInvestedCapital']
-    df_calculated['TTM_FreeCashFlow'] = df_calculated['FreeCashFlow'].rolling(4).sum()
-    df_calculated['TTM_GrossMargin'] = ((df_sorted['TotalRevenue'].rolling(4).sum() - df_sorted['CostOfRevenue'].rolling(4).sum()) / 
-                                        df_sorted['TotalRevenue'].rolling(4).sum())
-    df_calculated['TTM_OperatingCashFlow'] = df_sorted['OperatingCashFlow'].rolling(4).sum()
+    df_calculated['TTM_FreeCashFlow'] = compute_ttm(df_calculated['FreeCashFlow'])
+    df_calculated['TTM_GrossMargin'] = ((compute_ttm(df_sorted['TotalRevenue']) - compute_ttm(df_sorted['CostOfRevenue'])) / 
+                                        compute_ttm(df_sorted['TotalRevenue']))
+    df_calculated['TTM_OperatingCashFlow'] = compute_ttm(df_sorted['OperatingCashFlow'])
     df_calculated['TTM_OCFMargin'] = (df_calculated['TTM_OperatingCashFlow'] / 
                                           df_calculated['TTM_TotalRevenue'])
     df_calculated['TTM_FCFMargin'] = (df_calculated['TTM_FreeCashFlow'] /
@@ -126,6 +128,19 @@ def get_fundamentals(ticker):
     df_calculated['TTM_NetMargin'] = df_calculated['TTM_NetIncome'] / df_calculated['TTM_TotalRevenue']
 
     return df_sorted, df_calculated
+
+def get_latest_metrics(df_calculated, ticker):
+    latest = df_calculated.iloc[-1]
+    return {
+        'Ticker': ticker,
+        'TTM_ROIC': latest['TTM_ROIC'],
+        'TTM_GrossMargin': latest['TTM_GrossMargin'],
+        'TTM_OperatingMargin': latest['TTM_OperatingMargin'],
+        'TTM_NetMargin': latest['TTM_NetMargin'],
+        'TTM_OCFMargin': latest['TTM_OCFMargin'],
+        'RevenueGrowth_YoY': latest['RevenueGrowth_YoY'],
+        'DebtToEquity': latest['DebtToEquity']
+    }
 
 def main():
     parser = argparse.ArgumentParser(prog='CalculateFundamentals.py', description='Analyze a company\'s fundamentals.')
@@ -137,7 +152,7 @@ def main():
 
     df_calculated.to_csv('data/{}/calculated_fundamentals.csv'.format(args.ticker), index=False)
 
-    fig, ax = plt.subplots()
+    fig, ax = plt.subplots(figsize=(12, 6))
     df_calculated.plot(ax=ax, kind='line', x='Date', y='TTM_ROIC', title='TTM_ROIC', grid=True)
     print(df_calculated.columns.tolist())
     print(df_calculated.tail())

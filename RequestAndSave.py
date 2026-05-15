@@ -8,6 +8,8 @@ from pathlib import Path
 import time
 import argparse
 
+functions = ['CASH_FLOW', 'BALANCE_SHEET', 'INCOME_STATEMENT']
+
 def request_and_save_json(function, symbol):
     '''
         Get data from AlphaVantage with the given function and symbol.
@@ -31,11 +33,9 @@ def main():
 
     args = parser.parse_args()
     print("Stock ticker: {}".format(args.ticker))
-    request_and_save_json('CASH_FLOW', args.ticker)
-    time.sleep(1)
-    request_and_save_json('BALANCE_SHEET', args.ticker)
-    time.sleep(1)
-    request_and_save_json('INCOME_STATEMENT', args.ticker)
+    for function_name in functions:
+        print("Requesting {} data...".format(function_name))
+        request_and_save_json(function_name, args.ticker)
 
 if __name__ == "__main__":
     main()
