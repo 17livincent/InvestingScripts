@@ -8,19 +8,21 @@ from matplotlib.ticker import PercentFormatter
 from datetime import datetime, timedelta
 
 tickers = [
-    'PLTR',
+    # 'PLTR',
     # 'TEAM',
     'APH',
+    'AME',
+    # 'ETN',
     # 'F',
-    'SNDK',
-    # 'BROS',
-    'MU',
+    # 'SNDK',
+    # 'MU',
     # 'NVDA',
-    'AVGO',
+    # 'AVGO',
     # 'META',
-    'ETN',
     'V',
-    'MA'
+    'MA',
+    'TMUS',
+    'VZ'
     ]
 
 graphs = [{'x': 'Date', 'y': 'TTM_ROIC'},
@@ -49,6 +51,7 @@ print(df_comparison)
 
 top_ttm_roic = df_comparison.iloc[0]['Ticker']
 
+plt.style.use('dark_background')
 fig, ax = plt.subplots(2, 2, figsize=(16, 8))
 
 for ticker in tickers:
