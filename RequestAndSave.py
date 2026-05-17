@@ -9,7 +9,12 @@ import time
 import argparse
 from CalculateFundamentals import get_and_save_fundamentals
 
-functions = ['CASH_FLOW', 'BALANCE_SHEET', 'INCOME_STATEMENT']
+functions = [
+    'CASH_FLOW',
+    'BALANCE_SHEET',
+    'INCOME_STATEMENT',
+    'TIME_SERIES_WEEKLY_ADJUSTED'
+    ]
 
 def request_and_save_json(function, symbol):
     '''
@@ -31,10 +36,13 @@ def request_and_save_json(function, symbol):
 def main():
     parser = argparse.ArgumentParser(prog='RequestAndSave.py', description='Get data from AlphaVantage.')
     parser.add_argument('-t', '--ticker', required=True, help='Stock ticker')
+    parser.add_argument('-a', '--get-all', required=False, default=False, help='Pull, save, and overwrite all data.  Otherwise, leave the existing files alone.')
 
     args = parser.parse_args()
     print("Stock ticker: {}".format(args.ticker))
     for function_name in functions:
+        if (args.get_all == False) and (open('data/{}/{}.json'.format(args.ticker, function_name), 'r') != None):
+            continue
         print("Requesting {} data...".format(function_name))
         time.sleep(1)
         request_and_save_json(function_name, args.ticker)
