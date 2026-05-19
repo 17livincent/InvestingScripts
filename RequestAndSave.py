@@ -29,10 +29,12 @@ def request_and_save_json(function, symbol):
     r = requests.get(url)
     data = r.json()
 
-    if data:
+    if data and 'Information' not in data:
         Path('data/{}'.format(symbol)).mkdir(exist_ok=True)
         with open('data/{}/{}.json'.format(symbol, function), 'w') as export_json_file:
             json.dump(data, export_json_file, indent=4)
+    else:
+        print("WARNING: received for {}:\r\n{}".format(function, data))
 
 def main():
     parser = argparse.ArgumentParser(prog='RequestAndSave.py', description='Get data from AlphaVantage.')
