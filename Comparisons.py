@@ -19,10 +19,12 @@ tickers = [
     # 'NVDA',
     # 'AVGO',
     # 'META',
-    'V',
-    'MA',
-    'TMUS',
-    'VZ'
+    # 'V',
+    # 'MA',
+    # 'TMUS',
+    # 'VZ',
+    'FDX',
+    'CRWD'
     ]
 
 graphs = [{'x': 'Date', 'y': 'TTM_ROIC'},
@@ -73,5 +75,4 @@ for ticker in tickers:
 
 fig.suptitle('Comparisons', fontsize=24)
 fig.tight_layout()
-plt.show()
 fig.savefig('data/Comparisons.png')
