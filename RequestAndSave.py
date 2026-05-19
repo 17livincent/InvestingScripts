@@ -41,7 +41,7 @@ def main():
     args = parser.parse_args()
     print("Stock ticker: {}".format(args.ticker))
     for function_name in functions:
-        if (args.get_all == False) and (open('data/{}/{}.json'.format(args.ticker, function_name), 'r') != None):
+        if (args.get_all == False) and (Path('data/{}/{}.json'.format(args.ticker, function_name)).exists()):
             continue
         print("Requesting {} data...".format(function_name))
         time.sleep(1)
