@@ -7,13 +7,14 @@ import subprocess
 from pathlib import Path
 import time
 import argparse
-from CalculateFundamentals import get_and_save_fundamentals
+from OperationalMetrics import get_and_save_fundamentals
 
 functions = [
     'CASH_FLOW',
     'BALANCE_SHEET',
     'INCOME_STATEMENT',
-    'TIME_SERIES_WEEKLY_ADJUSTED'
+    'TIME_SERIES_WEEKLY_ADJUSTED',
+    'SHARES_OUTSTANDING'
     ]
 
 def request_and_save_json(function, symbol):

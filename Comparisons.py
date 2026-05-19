@@ -1,7 +1,8 @@
 """
     Compare multiple companies.
 """
-from CalculateFundamentals import read_saved_fundamentals, get_latest_metrics
+from OperationalMetrics import read_saved_fundamentals, get_latest_metrics
+from ValuationMetrics import get_valuation
 import pandas as pd
 import matplotlib.pyplot as plt
 from matplotlib.ticker import PercentFormatter
@@ -14,13 +15,13 @@ tickers = [
     'AME',
     # 'ETN',
     # 'F',
-    # 'SNDK',
-    # 'MU',
+    'SNDK',
+    'MU',
     # 'NVDA',
     # 'AVGO',
     # 'META',
-    # 'V',
-    # 'MA',
+    'V',
+    'MA',
     # 'TMUS',
     # 'VZ',
     'FDX',
@@ -45,6 +46,12 @@ for ticker in tickers:
     except FileNotFoundError as e:
         print(e)
         print("WARNING: no data for {}.".format(ticker))
+    try:
+        df_calculated = get_valuation(ticker, df_calculated)
+    except FileNotFoundError as e:
+        print(e)
+        print("WARNING: no data for {}.".format(ticker))
+
     df_calculated_all[ticker] = df_calculated
 
 df_comparison = pd.DataFrame(comparison_rows)
