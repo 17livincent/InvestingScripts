@@ -37,6 +37,8 @@ def get_fundamentals(ticker):
                                                        quarterly_report in income_statement['quarterlyReports']]
         df_data_income_statement['IncomeTaxExpense'] = [quarterly_report['incomeTaxExpense'] for
                                                         quarterly_report in income_statement['quarterlyReports']]
+        df_data_income_statement['EBIT'] = [quarterly_report['ebit'] for
+                                            quarterly_report in income_statement['quarterlyReports']]
 
     df_data_balance_sheet = pd.DataFrame()
 
