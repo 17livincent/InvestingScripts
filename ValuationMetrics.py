@@ -56,9 +56,9 @@ def get_valuation(ticker, df_fundamentals):
     df_merged['MarketCap'] = df_merged['DilutedSharesOutstanding'] * df_merged['StockAdjustedClose']
 
     # Calculate PE ratio
-    df_merged['PE_TTM'] = np.where(df_fundamentals['TTM_NetIncome'] > 0,
-                               df_merged['MarketCap'] / df_fundamentals['TTM_NetIncome'],
-                               np.nan)
+    df_merged['PE_TTM'] = np.where(df_merged['TTM_NetIncome'] > 0,
+                                   df_merged['MarketCap'] / df_merged['TTM_NetIncome'],
+                                   np.nan)
     df_merged['PE_TTM'] = df_merged['PE_TTM'].clip(upper=200)
 
     # Calculate P/FCF
@@ -70,19 +70,31 @@ def get_valuation(ticker, df_fundamentals):
     df_merged['EnterpriseValue'] = df_merged['MarketCap'] + df_fundamentals['TotalDebt'] - df_fundamentals['Cash']
 
     # Calculate enterprise value to EBIT ratio
-    df_merged['EV_EBIT'] = np.where(df_fundamentals['TTM_OperatingIncome'] > 0,
+    df_merged['EV_EBIT'] = np.where(df_merged['TTM_OperatingIncome'] > 0,
                                     df_merged['EnterpriseValue'] / df_fundamentals['TTM_OperatingIncome'],
                                     np.nan)
     df_merged['EV_EBIT'] = df_merged['EV_EBIT'].clip(upper=100)
 
     # Calculate EVto NOPAT ratio
-    df_merged['EV_NOPAT'] = np.where(df_fundamentals['TTM_NOPAT'] > 0,
+    df_merged['EV_NOPAT'] = np.where(df_merged['TTM_NOPAT'] > 0,
                                      df_merged['EnterpriseValue'] / df_fundamentals['TTM_NOPAT'],
                                      np.nan)
 
     # Calculate EV to FCF ratio
-    df_merged['EV_FCF'] = np.where(df_fundamentals['TTM_FreeCashFlow'] > 0,
+    df_merged['EV_FCF'] = np.where(df_merged['TTM_FreeCashFlow'] > 0,
                                    df_merged['EnterpriseValue'] / df_fundamentals['TTM_FreeCashFlow'],
                                    np.nan)
 
     return df_merged
+
+def get_latest_valuation(df_valuation, ticker):
+    """
+        Get a summary of the latest valuation metrics, given df_valuation
+        from get_valuation() of the given ticker.
+    """
+    latest = df_valuation.iloc[-1]
+    return {
+        'Ticker': ticker,
+        'PE': latest['PE_TTM'],
+        'EV_EBIT': latest['EV_EBIT']
+    }

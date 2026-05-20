@@ -74,56 +74,59 @@ def get_fundamentals(ticker):
         if column_name != 'Date':
             df_sorted[column_name] = pd.to_numeric(df_sorted[column_name], errors='coerce').fillna(0)
 
+    return df_sorted
+
+def calculate_fundamentals(df_fundmentals):
     df_calculated = pd.DataFrame()
-    df_calculated['Date'] = df_sorted['Date']
+    df_calculated['Date'] = df_fundmentals['Date']
 
     # Calculate debt-to-equity
-    df_calculated['DebtToEquity'] = safe_divide(df_sorted['TotalDebt'], df_sorted['TotalShareholderEquity'])
+    df_calculated['DebtToEquity'] = safe_divide(df_fundmentals['TotalDebt'], df_fundmentals['TotalShareholderEquity'])
 
     # Calculate return-on-equity
-    df_calculated['ReturnOnEquity'] = safe_divide(df_sorted['NetIncome'], df_sorted['TotalShareholderEquity'])
+    df_calculated['ReturnOnEquity'] = safe_divide(df_fundmentals['NetIncome'], df_fundmentals['TotalShareholderEquity'])
 
     # Calculate free cash flow
-    df_calculated['FreeCashFlow'] = df_sorted['OperatingCashFlow'] - df_sorted['CapEx']
+    df_calculated['FreeCashFlow'] = df_fundmentals['OperatingCashFlow'] - df_fundmentals['CapEx']
 
     # Calculate gross margin
-    df_calculated['GrossMargin_Quarterly'] = (df_sorted['TotalRevenue'] - df_sorted['CostOfRevenue']) / df_sorted['TotalRevenue']
+    df_calculated['GrossMargin_Quarterly'] = (df_fundmentals['TotalRevenue'] - df_fundmentals['CostOfRevenue']) / df_fundmentals['TotalRevenue']
 
     # Calculate operating margin
-    df_calculated['OperatingMargin'] = df_sorted['OperatingIncome'] / df_sorted['TotalRevenue']
+    df_calculated['OperatingMargin'] = df_fundmentals['OperatingIncome'] / df_fundmentals['TotalRevenue']
 
     # Calculate net margin
-    df_calculated['NetMargin'] = df_sorted['NetIncome'] / df_sorted['TotalRevenue']
+    df_calculated['NetMargin'] = df_fundmentals['NetIncome'] / df_fundmentals['TotalRevenue']
 
     # Calculate effective tax rate
-    df_calculated['EffectiveTaxRate'] = (df_sorted['IncomeTaxExpense'] / df_sorted['IncomeBeforeTax']).clip(lower=0, upper=0.35)
+    df_calculated['EffectiveTaxRate'] = (df_fundmentals['IncomeTaxExpense'] / df_fundmentals['IncomeBeforeTax']).clip(lower=0, upper=0.35)
     # Calculate ROIC
-    df_calculated['InvestedCapital'] = df_sorted['TotalDebt'] + df_sorted['TotalShareholderEquity'] - df_sorted['Cash']
+    df_calculated['InvestedCapital'] = df_fundmentals['TotalDebt'] + df_fundmentals['TotalShareholderEquity'] - df_fundmentals['Cash']
     df_calculated['InvestedCapital'] = df_calculated['InvestedCapital'].where(df_calculated['InvestedCapital'] > 0)
-    df_calculated['NOPAT'] = df_sorted['OperatingIncome'] * (1 - df_calculated['EffectiveTaxRate'])
+    df_calculated['NOPAT'] = df_fundmentals['OperatingIncome'] * (1 - df_calculated['EffectiveTaxRate'])
     df_calculated['ROIC'] = df_calculated['NOPAT'] / df_calculated['InvestedCapital']
 
     # Calculate revenue growth YoY
-    df_calculated['RevenueGrowth_YoY'] = df_sorted['TotalRevenue'].pct_change(periods=4)
+    df_calculated['RevenueGrowth_YoY'] = df_fundmentals['TotalRevenue'].pct_change(periods=4)
 
     # Calculate OCF margin
-    df_calculated['OCFMargin'] = df_sorted['OperatingCashFlow'] /df_sorted['TotalRevenue']
+    df_calculated['OCFMargin'] = df_fundmentals['OperatingCashFlow'] /df_fundmentals['TotalRevenue']
 
     # Calculate free cash flow margin
-    df_calculated['FCFMargin'] = df_calculated['FreeCashFlow'] / df_sorted['TotalRevenue']
+    df_calculated['FCFMargin'] = df_calculated['FreeCashFlow'] / df_fundmentals['TotalRevenue']
 
     # TTM metrics
-    df_calculated['TTM_TotalRevenue'] = compute_ttm(df_sorted['TotalRevenue'])
-    df_calculated['TTM_NetIncome'] = compute_ttm(df_sorted['NetIncome'])
-    df_calculated['TTM_OperatingIncome'] = compute_ttm(df_sorted['OperatingIncome'])
-    df_calculated['TTM_CapEx'] = compute_ttm(df_sorted['CapEx'])
+    df_calculated['TTM_TotalRevenue'] = compute_ttm(df_fundmentals['TotalRevenue'])
+    df_calculated['TTM_NetIncome'] = compute_ttm(df_fundmentals['NetIncome'])
+    df_calculated['TTM_OperatingIncome'] = compute_ttm(df_fundmentals['OperatingIncome'])
+    df_calculated['TTM_CapEx'] = compute_ttm(df_fundmentals['CapEx'])
     df_calculated['TTM_NOPAT'] = compute_ttm(df_calculated['NOPAT'])
     df_calculated['AverageInvestedCapital'] = df_calculated['InvestedCapital'].rolling(4).mean()
     df_calculated['TTM_ROIC'] = df_calculated['TTM_NOPAT'] / df_calculated['AverageInvestedCapital']
     df_calculated['TTM_FreeCashFlow'] = compute_ttm(df_calculated['FreeCashFlow'])
-    df_calculated['TTM_GrossMargin'] = ((compute_ttm(df_sorted['TotalRevenue']) - compute_ttm(df_sorted['CostOfRevenue'])) /
-                                        compute_ttm(df_sorted['TotalRevenue']))
-    df_calculated['TTM_OperatingCashFlow'] = compute_ttm(df_sorted['OperatingCashFlow'])
+    df_calculated['TTM_GrossMargin'] = ((compute_ttm(df_fundmentals['TotalRevenue']) - compute_ttm(df_fundmentals['CostOfRevenue'])) /
+                                        compute_ttm(df_fundmentals['TotalRevenue']))
+    df_calculated['TTM_OperatingCashFlow'] = compute_ttm(df_fundmentals['OperatingCashFlow'])
     df_calculated['TTM_OCFMargin'] = (df_calculated['TTM_OperatingCashFlow'] /
                                           df_calculated['TTM_TotalRevenue'])
     df_calculated['TTM_FCFMargin'] = (df_calculated['TTM_FreeCashFlow'] /
@@ -131,8 +134,7 @@ def get_fundamentals(ticker):
     df_calculated['TTM_OperatingMargin'] = df_calculated['TTM_OperatingIncome'] / df_calculated['TTM_TotalRevenue']
     df_calculated['TTM_NetMargin'] = df_calculated['TTM_NetIncome'] / df_calculated['TTM_TotalRevenue']
 
-    df_combined = pd.concat([df_sorted, df_calculated.drop(columns=['Date'])], axis=1)
-    return df_combined
+    return df_calculated
 
 def get_latest_metrics(df_calculated, ticker):
     latest = df_calculated.iloc[-1]

@@ -1,8 +1,8 @@
 """
     Compare multiple companies.
 """
-from OperationalMetrics import read_saved_fundamentals, get_latest_metrics
-from ValuationMetrics import get_valuation
+from OperationalMetrics import read_saved_fundamentals, calculate_fundamentals, get_latest_metrics
+from ValuationMetrics import get_valuation, get_latest_valuation
 import pandas as pd
 import matplotlib.pyplot as plt
 from matplotlib.ticker import PercentFormatter
@@ -24,7 +24,7 @@ tickers = [
     # 'MA',
     # 'TMUS',
     # 'VZ',
-    # 'FDX',
+    'FDX',
     'CRWD'
     ]
 
@@ -57,16 +57,19 @@ now = pd.to_datetime(datetime.now())
 for ticker in tickers:
     df_calculated = pd.DataFrame()
     try:
-        df_calculated = read_saved_fundamentals(ticker)
-        comparison_rows.append(get_latest_metrics(df_calculated, ticker))
-    except FileNotFoundError as e:
-        print(e)
-        print("WARNING: no data for {}.".format(ticker))
-    try:
+        df_fundamentals = read_saved_fundamentals(ticker)
+        df_calculated = pd.merge(df_fundamentals, calculate_fundamentals(df_fundamentals), on='Date')
         df_calculated = get_valuation(ticker, df_calculated)
+
+        comparison_dict = get_latest_metrics(df_calculated, ticker)
+        comparison_dict.update(get_latest_valuation(df_calculated, ticker))
+        comparison_rows.append(comparison_dict)
     except FileNotFoundError as e:
         print(e)
         print("WARNING: no data for {}.".format(ticker))
+    except KeyError as e:
+        print(e)
+        print(ticker)
 
     df_calculated_all[ticker] = df_calculated
 
