@@ -9,11 +9,11 @@ from matplotlib.ticker import PercentFormatter
 from datetime import datetime, timedelta
 
 tickers = [
-    # 'PLTR',
+    'PLTR',
     # 'TEAM',
     'APH',
     'AME',
-    # 'ETN',
+    'ETN',
     # 'F',
     'SNDK',
     'MU',
@@ -25,7 +25,8 @@ tickers = [
     # 'TMUS',
     # 'VZ',
     'FDX',
-    'CRWD'
+    'CRWD',
+    'CVX'
     ]
 
 FIGURE_ROWS = 4
