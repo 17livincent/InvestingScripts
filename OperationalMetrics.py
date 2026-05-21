@@ -167,12 +167,7 @@ def main():
     args = parser.parse_args()
     print("Stock ticker: {}".format(args.ticker))
     df_calculated = get_and_save_fundamentals(args.ticker)
-
-    fig, ax = plt.subplots(figsize=(12, 6))
-    df_calculated.plot(ax=ax, kind='line', x='Date', y='TTM_ROIC', title='TTM_ROIC', grid=True)
-    print(df_calculated.columns.tolist())
-    print(df_calculated.tail())
-    plt.show()
+    print(df_calculated.columns)
 
 if __name__ == "__main__":
     main()

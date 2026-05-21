@@ -8,5 +8,7 @@ dependencies = [
     "requests",
     "pandas",
     "numpy",
-    "matplotlib"
+    "matplotlib",
+    "sqlalchemy",
+    "psycopg2-binary"
 ]
