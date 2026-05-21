@@ -5,17 +5,26 @@ import json
 import requests
 import subprocess
 from pathlib import Path
+import pandas as pd
 import time
 import argparse
 from OperationalMetrics import get_and_save_fundamentals
 
 functions = [
-    'CASH_FLOW',
     'BALANCE_SHEET',
+    'CASH_FLOW',
     'INCOME_STATEMENT',
-    'TIME_SERIES_WEEKLY_ADJUSTED',
-    'SHARES_OUTSTANDING'
+    'SHARES_OUTSTANDING',
+    'TIME_SERIES_WEEKLY_ADJUSTED'
     ]
+
+recency = {
+    'BALANCE_SHEET': 'quarter',
+    'CASH_FLOW': 'quarter',
+    'INCOME_STATEMENT': 'quarter',
+    'SHARES_OUTSTANDING': 'quarter',
+    'TIME_SERIES_WEEKLY_ADJUSTED': 'week'
+}
 
 def request_and_save_json(function, symbol):
     '''
@@ -36,10 +45,26 @@ def request_and_save_json(function, symbol):
     else:
         print("WARNING: received for {}:\r\n{}".format(function, data))
 
+def get_most_recent_date(function_name, function_json):
+    recent_date = None
+    if function_name == 'BALANCE_SHEET':
+        recent_date = function_json['quarterlyReports'][0]['fiscalDateEnding']
+    elif function_name == 'CASH_FLOW':
+        recent_date = function_json['quarterlyReports'][0]['fiscalDateEnding']
+    elif function_name == 'INCOME_STATEMENT':
+        recent_date = function_json['quarterlyReports'][0]['fiscalDateEnding']
+    elif function_name == 'SHARES_OUTSTANDING':
+        recent_date = function_json['data'][0]['date']
+    elif function_name == 'TIME_SERIES_WEEKLY_ADJUSTED':
+        recent_date = list(function_json['Weekly Adjusted Time Series'].keys())[0]
+
+    recent_date = pd.to_datetime(recent_date)
+    return recent_date
+
 def main():
     parser = argparse.ArgumentParser(prog='RequestAndSave.py', description='Get data from AlphaVantage.')
     parser.add_argument('-t', '--ticker', required=True, help='Stock ticker')
-    parser.add_argument('-a', '--get-all', required=False, default=False, help='Pull, save, and overwrite all data.  Otherwise, leave the existing files alone.')
+    parser.add_argument('-a', '--get-all', required=False, action='store_true', help='Pull, save, and overwrite all data.  Otherwise, leave the existing files alone.')
 
     args = parser.parse_args()
     print("Stock ticker: {}".format(args.ticker))
