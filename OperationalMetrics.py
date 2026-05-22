@@ -90,7 +90,7 @@ def calculate_fundamentals(df_fundmentals):
     df_calculated['FreeCashFlow'] = df_fundmentals['OperatingCashFlow'] - df_fundmentals['CapEx']
 
     # Calculate gross margin
-    df_calculated['GrossMargin_Quarterly'] = (df_fundmentals['TotalRevenue'] - df_fundmentals['CostOfRevenue']) / df_fundmentals['TotalRevenue']
+    df_calculated['GrossMargin'] = (df_fundmentals['TotalRevenue'] - df_fundmentals['CostOfRevenue']) / df_fundmentals['TotalRevenue']
 
     # Calculate operating margin
     df_calculated['OperatingMargin'] = df_fundmentals['OperatingIncome'] / df_fundmentals['TotalRevenue']

@@ -33,7 +33,8 @@ def get_valuation(ticker, df_fundamentals):
             weekly_stock = json.load(weekly_stock_json)
             for item in weekly_stock['Weekly Adjusted Time Series'].keys():
                 rows_list.append({'Date': item,
-                                'StockAdjustedClose': float(weekly_stock['Weekly Adjusted Time Series'][item]['5. adjusted close'])})
+                                'StockAdjustedClose': float(weekly_stock['Weekly Adjusted Time Series'][item]['5. adjusted close']),
+                                'Volume': float(weekly_stock['Weekly Adjusted Time Series'][item]['6. volume'])})
         df_weekly_stock_close = pd.DataFrame(rows_list)
         df_weekly_stock_close['Date'] = pd.to_datetime(df_weekly_stock_close['Date'])
         df_weekly_stock_close = df_weekly_stock_close.sort_values('Date')
@@ -43,7 +44,7 @@ def get_valuation(ticker, df_fundamentals):
 
     df_merged = pd.merge_asof(
         df_fundamentals,
-        df_weekly_stock_close[['Date', 'StockAdjustedClose']],
+        df_weekly_stock_close[['Date', 'StockAdjustedClose', 'Volume']],
         on='Date',
         direction='backward')
     df_merged = pd.merge_asof(
