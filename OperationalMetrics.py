@@ -23,15 +23,15 @@ def get_fundamentals(ticker):
 
     with open('data/{}/INCOME_STATEMENT.json'.format(ticker)) as income_statement_json:
         income_statement = json.load(income_statement_json)
-        df_data_income_statement['Date'] = [quarterly_report['fiscalDateEnding'] for
+        df_data_income_statement['date'] = [quarterly_report['fiscalDateEnding'] for
                                             quarterly_report in income_statement['quarterlyReports']]
-        df_data_income_statement['TotalRevenue'] = [quarterly_report['totalRevenue'] for
+        df_data_income_statement['total_revenue'] = [quarterly_report['totalRevenue'] for
                                                     quarterly_report in income_statement['quarterlyReports']]
-        df_data_income_statement['CostOfRevenue'] = [quarterly_report['costOfRevenue'] for
+        df_data_income_statement['cost_of_revenue'] = [quarterly_report['costOfRevenue'] for
                                                      quarterly_report in income_statement['quarterlyReports']]
-        df_data_income_statement['NetIncome'] = [quarterly_report['netIncome'] for
+        df_data_income_statement['net_income'] = [quarterly_report['netIncome'] for
                                                  quarterly_report in income_statement['quarterlyReports']]
-        df_data_income_statement['OperatingIncome'] = [quarterly_report['operatingIncome'] for
+        df_data_income_statement['operating_income'] = [quarterly_report['operatingIncome'] for
                                                        quarterly_report in income_statement['quarterlyReports']]
         df_data_income_statement['IncomeBeforeTax'] = [quarterly_report['incomeBeforeTax'] for
                                                        quarterly_report in income_statement['quarterlyReports']]
@@ -44,95 +44,97 @@ def get_fundamentals(ticker):
 
     with open('data/{}/BALANCE_SHEET.json'.format(ticker)) as balance_sheet_json:
         balance_sheet = json.load(balance_sheet_json)
-        df_data_balance_sheet['Date'] = [quarterly_report['fiscalDateEnding'] for
+        df_data_balance_sheet['date'] = [quarterly_report['fiscalDateEnding'] for
                                          quarterly_report in balance_sheet['quarterlyReports']]
-        df_data_balance_sheet['TotalShareholderEquity'] = [quarterly_report['totalShareholderEquity'] for
+        df_data_balance_sheet['shareholder_equity'] = [quarterly_report['totalShareholderEquity'] for
                                                            quarterly_report in balance_sheet['quarterlyReports']]
-        df_data_balance_sheet['TotalDebt'] = [quarterly_report['shortLongTermDebtTotal'] for
+        df_data_balance_sheet['total_debt'] = [quarterly_report['shortLongTermDebtTotal'] for
                                               quarterly_report in balance_sheet['quarterlyReports']]
-        df_data_balance_sheet['Cash'] = [quarterly_report['cashAndCashEquivalentsAtCarryingValue'] for
+        df_data_balance_sheet['cash'] = [quarterly_report['cashAndCashEquivalentsAtCarryingValue'] for
                                          quarterly_report in balance_sheet['quarterlyReports']]
 
     df_cash_flow = pd.DataFrame()
 
     with open('data/{}/CASH_FLOW.json'.format(ticker)) as cash_flow_json:
         cash_flow = json.load(cash_flow_json)
-        df_cash_flow['Date'] = [quarterly_report['fiscalDateEnding'] for
+        df_cash_flow['date'] = [quarterly_report['fiscalDateEnding'] for
                                          quarterly_report in cash_flow['quarterlyReports']]
-        df_cash_flow['OperatingCashFlow'] = [quarterly_report['operatingCashflow'] for
+        df_cash_flow['operating_cash_flow'] = [quarterly_report['operatingCashflow'] for
                                          quarterly_report in cash_flow['quarterlyReports']]
-        df_cash_flow['CapEx'] = [quarterly_report['capitalExpenditures'] for
+        df_cash_flow['capex'] = [quarterly_report['capitalExpenditures'] for
                                          quarterly_report in cash_flow['quarterlyReports']]
 
-    df_merge1 = pd.merge(df_data_income_statement, df_data_balance_sheet, on='Date')
-    df_merged = pd.merge(df_merge1, df_cash_flow, on='Date')
+    df_merge1 = pd.merge(df_data_income_statement, df_data_balance_sheet, on='date')
+    df_merged = pd.merge(df_merge1, df_cash_flow, on='date')
 
-    df_sorted = df_merged.sort_values(by='Date', ascending=True)
-    df_sorted['Date'] = pd.to_datetime(df_sorted['Date'])
+    df_sorted = df_merged.sort_values(by='date', ascending=True)
+    df_sorted['date'] = pd.to_datetime(df_sorted['date'])
 
     for column_name in df_sorted:
-        if column_name != 'Date':
+        if column_name != 'date':
             df_sorted[column_name] = pd.to_numeric(df_sorted[column_name], errors='coerce').fillna(0)
 
     return df_sorted
 
 def calculate_fundamentals(df_fundmentals):
     df_calculated = pd.DataFrame()
-    df_calculated['Date'] = df_fundmentals['Date']
+    df_calculated['date'] = df_fundmentals['date']
 
     # Calculate debt-to-equity
-    df_calculated['DebtToEquity'] = safe_divide(df_fundmentals['TotalDebt'], df_fundmentals['TotalShareholderEquity'])
+    df_calculated['debt_to_equity'] = safe_divide(df_fundmentals['total_debt'], df_fundmentals['shareholder_equity'])
 
     # Calculate return-on-equity
-    df_calculated['ReturnOnEquity'] = safe_divide(df_fundmentals['NetIncome'], df_fundmentals['TotalShareholderEquity'])
-
-    # Calculate free cash flow
-    df_calculated['FreeCashFlow'] = df_fundmentals['OperatingCashFlow'] - df_fundmentals['CapEx']
+    df_calculated['roe'] = safe_divide(df_fundmentals['net_income'], df_fundmentals['shareholder_equity'])
 
     # Calculate gross margin
-    df_calculated['GrossMargin'] = (df_fundmentals['TotalRevenue'] - df_fundmentals['CostOfRevenue']) / df_fundmentals['TotalRevenue']
+    df_calculated['gross_margin'] = (df_fundmentals['total_revenue'] - df_fundmentals['cost_of_revenue']) / df_fundmentals['total_revenue']
 
     # Calculate operating margin
-    df_calculated['OperatingMargin'] = df_fundmentals['OperatingIncome'] / df_fundmentals['TotalRevenue']
+    df_calculated['operating_margin'] = df_fundmentals['operating_income'] / df_fundmentals['total_revenue']
 
     # Calculate net margin
-    df_calculated['NetMargin'] = df_fundmentals['NetIncome'] / df_fundmentals['TotalRevenue']
+    df_calculated['net_margin'] = df_fundmentals['net_income'] / df_fundmentals['total_revenue']
 
     # Calculate effective tax rate
-    df_calculated['EffectiveTaxRate'] = (df_fundmentals['IncomeTaxExpense'] / df_fundmentals['IncomeBeforeTax']).clip(lower=0, upper=0.35)
+    df_calculated['effective_tax_rate'] = (df_fundmentals['IncomeTaxExpense'] / df_fundmentals['IncomeBeforeTax']).clip(lower=0, upper=0.35)
     # Calculate ROIC
-    df_calculated['InvestedCapital'] = df_fundmentals['TotalDebt'] + df_fundmentals['TotalShareholderEquity'] - df_fundmentals['Cash']
-    df_calculated['InvestedCapital'] = df_calculated['InvestedCapital'].where(df_calculated['InvestedCapital'] > 0)
-    df_calculated['NOPAT'] = df_fundmentals['OperatingIncome'] * (1 - df_calculated['EffectiveTaxRate'])
-    df_calculated['ROIC'] = df_calculated['NOPAT'] / df_calculated['InvestedCapital']
+    df_calculated['invested_capital'] = df_fundmentals['total_debt'] + df_fundmentals['shareholder_equity'] - df_fundmentals['cash']
+    df_calculated['invested_capital'] = df_calculated['invested_capital'].where(df_calculated['invested_capital'] > 0)
+    df_calculated['nopat'] = df_fundmentals['operating_income'] * (1 - df_calculated['effective_tax_rate'])
+    df_calculated['roic'] = df_calculated['nopat'] / df_calculated['invested_capital']
 
     # Calculate revenue growth YoY
-    df_calculated['RevenueGrowth_YoY'] = df_fundmentals['TotalRevenue'].pct_change(periods=4)
+    df_calculated['revenue_growth_yoy'] = df_fundmentals['total_revenue'].pct_change(periods=4)
 
     # Calculate OCF margin
-    df_calculated['OCFMargin'] = df_fundmentals['OperatingCashFlow'] /df_fundmentals['TotalRevenue']
+    df_calculated['ocf_margin'] = df_fundmentals['operating_cash_flow'] / df_fundmentals['total_revenue']
 
     # Calculate free cash flow margin
-    df_calculated['FCFMargin'] = df_calculated['FreeCashFlow'] / df_fundmentals['TotalRevenue']
+    fcf = df_fundmentals['operating_cash_flow'] - df_fundmentals['capex']
+    df_calculated['fcf_margin'] = fcf / df_fundmentals['total_revenue']
 
     # TTM metrics
-    df_calculated['TTM_TotalRevenue'] = compute_ttm(df_fundmentals['TotalRevenue'])
-    df_calculated['TTM_NetIncome'] = compute_ttm(df_fundmentals['NetIncome'])
-    df_calculated['TTM_OperatingIncome'] = compute_ttm(df_fundmentals['OperatingIncome'])
-    df_calculated['TTM_CapEx'] = compute_ttm(df_fundmentals['CapEx'])
-    df_calculated['TTM_NOPAT'] = compute_ttm(df_calculated['NOPAT'])
-    df_calculated['AverageInvestedCapital'] = df_calculated['InvestedCapital'].rolling(4).mean()
-    df_calculated['TTM_ROIC'] = df_calculated['TTM_NOPAT'] / df_calculated['AverageInvestedCapital']
-    df_calculated['TTM_FreeCashFlow'] = compute_ttm(df_calculated['FreeCashFlow'])
-    df_calculated['TTM_GrossMargin'] = ((compute_ttm(df_fundmentals['TotalRevenue']) - compute_ttm(df_fundmentals['CostOfRevenue'])) /
-                                        compute_ttm(df_fundmentals['TotalRevenue']))
-    df_calculated['TTM_OperatingCashFlow'] = compute_ttm(df_fundmentals['OperatingCashFlow'])
-    df_calculated['TTM_OCFMargin'] = (df_calculated['TTM_OperatingCashFlow'] /
-                                          df_calculated['TTM_TotalRevenue'])
-    df_calculated['TTM_FCFMargin'] = (df_calculated['TTM_FreeCashFlow'] /
-                                          df_calculated['TTM_TotalRevenue'])
-    df_calculated['TTM_OperatingMargin'] = df_calculated['TTM_OperatingIncome'] / df_calculated['TTM_TotalRevenue']
-    df_calculated['TTM_NetMargin'] = df_calculated['TTM_NetIncome'] / df_calculated['TTM_TotalRevenue']
+    ttm_total_revenue = compute_ttm(df_fundmentals['total_revenue'])
+    ttm_net_income = compute_ttm(df_fundmentals['net_income'])
+    ttm_operating_income = compute_ttm(df_fundmentals['operating_income'])
+    ttm_fcf = compute_ttm(fcf)
+    ttm_ocf = compute_ttm(df_fundmentals['operating_cash_flow'])
+    
+    # Store TTM totals for use in valuation calculations
+    df_calculated['ttm_net_income'] = ttm_net_income
+    df_calculated['ttm_operating_income'] = ttm_operating_income
+    df_calculated['ttm_fcf'] = ttm_fcf
+    df_calculated['ttm_total_revenue'] = ttm_total_revenue
+    
+    df_calculated['ttm_operating_margin'] = ttm_operating_income / ttm_total_revenue
+    df_calculated['ttm_net_margin'] = ttm_net_income / ttm_total_revenue
+    df_calculated['ttm_fcf_margin'] = ttm_fcf / ttm_total_revenue
+    df_calculated['ttm_ocf_margin'] = ttm_ocf / ttm_total_revenue
+    
+    # TTM ROIC
+    ttm_nopat = compute_ttm(df_calculated['nopat'])
+    df_calculated['average_invested_capital'] = df_calculated['invested_capital'].rolling(4).mean()
+    df_calculated['ttm_roic'] = ttm_nopat / df_calculated['average_invested_capital']
 
     return df_calculated
 
@@ -140,13 +142,12 @@ def get_latest_metrics(df_calculated, ticker):
     latest = df_calculated.iloc[-1]
     return {
         'Ticker': ticker,
-        'TTM_ROIC': latest['TTM_ROIC'],
-        'TTM_GrossMargin': latest['TTM_GrossMargin'],
-        'TTM_OperatingMargin': latest['TTM_OperatingMargin'],
-        'TTM_NetMargin': latest['TTM_NetMargin'],
-        'TTM_OCFMargin': latest['TTM_OCFMargin'],
-        'RevenueGrowth_YoY': latest['RevenueGrowth_YoY'],
-        'DebtToEquity': latest['DebtToEquity']
+        'ttm_roic': latest['ttm_roic'],
+        'ttm_operating_margin': latest['ttm_operating_margin'],
+        'ttm_net_margin': latest['ttm_net_margin'],
+        'ttm_ocf_margin': latest['ttm_ocf_margin'],
+        'revenue_growth_yoy': latest['revenue_growth_yoy'],
+        'debt_to_equity': latest['debt_to_equity']
     }
 
 def get_and_save_fundamentals(ticker):
@@ -157,7 +158,7 @@ def get_and_save_fundamentals(ticker):
 
 def read_saved_fundamentals(ticker):
     df_fundamentals = pd.read_csv(CALCULATED_FUNDAMENTALS_PATH.format(ticker))
-    df_fundamentals['Date'] = pd.to_datetime(df_fundamentals['Date'])
+    df_fundamentals['date'] = pd.to_datetime(df_fundamentals['date'])
     return df_fundamentals
 
 def main():

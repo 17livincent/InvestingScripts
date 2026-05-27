@@ -34,21 +34,21 @@ FIGURE_COLS = 2
 OPERATIONAL_TIME_FRAME_WEEKS = 52*6
 VALUATION_TIME_FRAME_WEEKS = 52*2
 
-time_frames = {'TTM_ROIC': OPERATIONAL_TIME_FRAME_WEEKS,
-               'RevenueGrowth_YoY': OPERATIONAL_TIME_FRAME_WEEKS,
-               'TTM_OperatingMargin': OPERATIONAL_TIME_FRAME_WEEKS,
-               'TTM_FCFMargin': OPERATIONAL_TIME_FRAME_WEEKS,
-               'PE_TTM': VALUATION_TIME_FRAME_WEEKS,
-               'EV_EBIT': VALUATION_TIME_FRAME_WEEKS,
-               'EV_FCF': VALUATION_TIME_FRAME_WEEKS}
+time_frames = {'ttm_roic': OPERATIONAL_TIME_FRAME_WEEKS,
+               'revenue_growth_yoy': OPERATIONAL_TIME_FRAME_WEEKS,
+               'ttm_operating_margin': OPERATIONAL_TIME_FRAME_WEEKS,
+               'ttm_fcf_margin': OPERATIONAL_TIME_FRAME_WEEKS,
+               'pe_ttm': VALUATION_TIME_FRAME_WEEKS,
+               'ev_ebit': VALUATION_TIME_FRAME_WEEKS,
+               'ev_fcf': VALUATION_TIME_FRAME_WEEKS}
 
-graphs = [{'x': 'Date', 'y': 'TTM_ROIC', 'percentFormat': True},
-          {'x': 'Date', 'y': 'RevenueGrowth_YoY', 'percentFormat': True},
-          {'x': 'Date', 'y': 'TTM_OperatingMargin', 'percentFormat': True},
-          {'x': 'Date', 'y': 'TTM_FCFMargin', 'percentFormat': True},
-          {'x': 'Date', 'y': 'PE_TTM', 'percentFormat': False},
-          {'x': 'Date', 'y': 'EV_EBIT', 'percentFormat': False},
-          {'x': 'Date', 'y': 'EV_FCF', 'percentFormat': False}]
+graphs = [{'x': 'date', 'y': 'ttm_roic', 'percentFormat': True},
+          {'x': 'date', 'y': 'revenue_growth_yoy', 'percentFormat': True},
+          {'x': 'date', 'y': 'ttm_operating_margin', 'percentFormat': True},
+          {'x': 'date', 'y': 'ttm_fcf_margin', 'percentFormat': True},
+          {'x': 'date', 'y': 'pe_ttm', 'percentFormat': False},
+          {'x': 'date', 'y': 'ev_ebit', 'percentFormat': False},
+          {'x': 'date', 'y': 'ev_fcf', 'percentFormat': False}]
 
 df_calculated_all = {}
 comparison_rows = []
@@ -59,7 +59,7 @@ for ticker in tickers:
     df_calculated = pd.DataFrame()
     try:
         df_fundamentals = read_saved_fundamentals(ticker)
-        df_calculated = pd.merge(df_fundamentals, calculate_fundamentals(df_fundamentals), on='Date')
+        df_calculated = pd.merge(df_fundamentals, calculate_fundamentals(df_fundamentals), on='date')
         df_calculated = get_valuation(ticker, df_calculated)
 
         comparison_dict = get_latest_metrics(df_calculated, ticker)
@@ -75,7 +75,7 @@ for ticker in tickers:
     df_calculated_all[ticker] = df_calculated
 
 df_comparison = pd.DataFrame(comparison_rows)
-df_comparison = df_comparison.sort_values(by='TTM_ROIC', ascending=False)
+df_comparison = df_comparison.sort_values(by='ttm_roic', ascending=False)
 print(df_comparison)
 
 top_ttm_roic = df_comparison.iloc[0]['Ticker']
@@ -87,7 +87,7 @@ for ticker in tickers:
 
         for graph_num, graph_x_y in enumerate(graphs):
             ticker_calculated = df_calculated_all[ticker]
-            since_calculated = ticker_calculated[now - ticker_calculated['Date'] < timedelta(weeks=time_frames[graph_x_y['y']])]
+            since_calculated = ticker_calculated[now - ticker_calculated['date'] < timedelta(weeks=time_frames[graph_x_y['y']])]
 
             if not df_calculated_all[ticker].empty:
 
