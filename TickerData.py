@@ -44,7 +44,6 @@ def add_data_update(ticker_name, table_name, db_connection):
 
 def get_from_companies(ticker_name, db_connection):
     query_str = "SELECT * FROM {} WHERE ticker = '{}';".format(TABLE_COMPANIES_NAME, ticker_name)
-    print(query_str)
     with db_connection.connect() as connection:
         df_company = pd.read_sql_query(query_str, con=connection)
     return df_company
@@ -60,29 +59,27 @@ def add_company(ticker_name, db_connection):
     else:
         print('WARNING: Import of {} failed.  Pulling from saved file if exists.'.format(OVERVIEW_FUNCTION_NAME))
 
-    try:
-        with open(overview_path, 'r') as overview_file_json:
-            overview_json = json.load(overview_file_json)
-            df_overview = pd.DataFrame([overview_json])
-            df_overview.rename(columns={
-                'Symbol': 'ticker',
-                'Name': 'company_name',
-                'Sector': 'sector',
-                'Industry': 'industry',
-                'Exchange': 'exchange',
-                'Country': 'country',
-                'MarketCapitalization': 'market_cap_latest'
-            }, inplace=True)
-            df_overview['market_cap_latest'] = df_overview['market_cap_latest'].astype(float)
+    with open(overview_path, 'r') as overview_file_json:
+        overview_json = json.load(overview_file_json)
+        df_overview = pd.DataFrame([overview_json])
+        df_overview.rename(columns={
+            'Symbol': 'ticker',
+            'Name': 'company_name',
+            'Sector': 'sector',
+            'Industry': 'industry',
+            'Exchange': 'exchange',
+            'Country': 'country',
+            'MarketCapitalization': 'market_cap_latest'
+        }, inplace=True)
+        df_overview['market_cap_latest'] = df_overview['market_cap_latest'].astype(float)
 
-            df_overview[list(TABLE_COMPANIES_DICT)].to_sql(name=TABLE_COMPANIES_NAME,
-                                                           con=db_connection,
-                                                           if_exists='append',
-                                                           index=False)
-            add_data_update(ticker_name, TABLE_COMPANIES_NAME, db_connection)
-            print('Added row for {} to table {}.'.format(ticker_name, TABLE_COMPANIES_NAME))
-    except FileNotFoundError:
-        print('ERROR: Could not read{}.', overview_path)
+        df_overview[list(TABLE_COMPANIES_DICT)].to_sql(name=TABLE_COMPANIES_NAME,
+                                                        con=db_connection,
+                                                        if_exists='append',
+                                                        index=False)
+        add_data_update(ticker_name, TABLE_COMPANIES_NAME, db_connection)
+        print('Added row for {} to table {}.'.format(ticker_name, TABLE_COMPANIES_NAME))
+
     return df_overview[list(TABLE_COMPANIES_DICT)]
 
 db_connection = get_db_connection()
