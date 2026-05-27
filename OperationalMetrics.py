@@ -119,18 +119,18 @@ def calculate_fundamentals(df_fundmentals):
     ttm_operating_income = compute_ttm(df_fundmentals['operating_income'])
     ttm_fcf = compute_ttm(fcf)
     ttm_ocf = compute_ttm(df_fundmentals['operating_cash_flow'])
-    
+
     # Store TTM totals for use in valuation calculations
     df_calculated['ttm_net_income'] = ttm_net_income
     df_calculated['ttm_operating_income'] = ttm_operating_income
     df_calculated['ttm_fcf'] = ttm_fcf
     df_calculated['ttm_total_revenue'] = ttm_total_revenue
-    
+
     df_calculated['ttm_operating_margin'] = ttm_operating_income / ttm_total_revenue
     df_calculated['ttm_net_margin'] = ttm_net_income / ttm_total_revenue
     df_calculated['ttm_fcf_margin'] = ttm_fcf / ttm_total_revenue
     df_calculated['ttm_ocf_margin'] = ttm_ocf / ttm_total_revenue
-    
+
     # TTM ROIC
     ttm_nopat = compute_ttm(df_calculated['nopat'])
     df_calculated['average_invested_capital'] = df_calculated['invested_capital'].rolling(4).mean()
@@ -141,7 +141,7 @@ def calculate_fundamentals(df_fundmentals):
 def get_latest_metrics(df_calculated, ticker):
     latest = df_calculated.iloc[-1]
     return {
-        'Ticker': ticker,
+        'ticker': ticker,
         'ttm_roic': latest['ttm_roic'],
         'ttm_operating_margin': latest['ttm_operating_margin'],
         'ttm_net_margin': latest['ttm_net_margin'],

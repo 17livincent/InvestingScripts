@@ -12,7 +12,6 @@ tickers = [
     'PLTR',
     # 'TEAM',
     'APH',
-    'AME',
     'ETN',
     # 'F',
     'SNDK',

@@ -15,7 +15,27 @@ Tables:
     - shares_outstanding    --> from raw AlphaVantage JSON
     - valuation_metrics     --> calculated from all raw tables
     - companies
+    - data_updates
 '''
+
+TABLE_COMPANIES_NAME = 'companies'
+TABLE_DATA_UPDATES_NAME = 'data_updates'
+
+TABLE_COMPANIES_DICT = {
+    'ticker': '',
+    'company_name': '',
+    'sector': '',
+    'industry': '',
+    'exchange': '',
+    'country': '',
+    'market_cap_latest': ''
+}
+
+TABLE_DATA_UPDATES_DICT = {
+    'ticker': '',
+    'dataset': '',
+    'last_updated': None
+}
 
 TABLES = [
 """
@@ -151,8 +171,9 @@ ON operational_metrics(ttm_roic DESC);
 """
 ]
 
-with engine.begin() as conn:
-    for sql in TABLES:
-        conn.execute(text(sql))
+def init_db_tables(engine):
+    with engine.begin() as conn:
+        for sql in TABLES:
+            conn.execute(text(sql))
 
-print("Database initialized.")
+    print("Database initialized.")

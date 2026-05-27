@@ -95,7 +95,7 @@ def get_latest_valuation(df_valuation, ticker):
     """
     latest = df_valuation.iloc[-1]
     return {
-        'Ticker': ticker,
+        'ticker': ticker,
         'pe_ttm': latest['pe_ttm'],
         'ev_ebit': latest['ev_ebit']
     }

@@ -26,17 +26,21 @@ recency = {
     'TIME_SERIES_WEEKLY_ADJUSTED': 'week'
 }
 
-def request_and_save_json(function, symbol):
-    '''
-        Get data from AlphaVantage with the given function and symbol.
-        Saves to a JSON file in data/.
-    '''
+def request_json(function, symbol):
     result = subprocess.run(['pass', 'show', 'Keys/AlphaVantage'], capture_output=True, text=True)
     key = result.stdout
 
     url = 'https://www.alphavantage.co/query?function={}&symbol={}&apikey={}'.format(function, symbol, key)
     r = requests.get(url)
     data = r.json()
+    return data
+
+def request_and_save_json(function, symbol):
+    '''
+        Get data from AlphaVantage with the given function and symbol.
+        Saves to a JSON file in data/.
+    '''
+    data = request_json(function, symbol)
 
     if data and 'Information' not in data:
         Path('data/{}'.format(symbol)).mkdir(exist_ok=True)
