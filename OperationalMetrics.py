@@ -18,7 +18,37 @@ def compute_ttm(series):
 def safe_divide(a, b):
     return np.where(b != 0, a / b, np.nan)
 
-def get_fundamentals(ticker):
+def get_balance_sheet(ticker):
+    df_data_balance_sheet = pd.DataFrame()
+
+    with open('data/{}/BALANCE_SHEET.json'.format(ticker)) as balance_sheet_json:
+        balance_sheet = json.load(balance_sheet_json)
+        df_data_balance_sheet['date'] = [quarterly_report['fiscalDateEnding'] for
+                                            quarterly_report in balance_sheet['quarterlyReports']]
+        df_data_balance_sheet['shareholder_equity'] = [quarterly_report['totalShareholderEquity'] for
+                                                            quarterly_report in balance_sheet['quarterlyReports']]
+        df_data_balance_sheet['total_debt'] = [quarterly_report['shortLongTermDebtTotal'] for
+                                                quarterly_report in balance_sheet['quarterlyReports']]
+        df_data_balance_sheet['cash'] = [quarterly_report['cashAndCashEquivalentsAtCarryingValue'] for
+                                            quarterly_report in balance_sheet['quarterlyReports']]
+
+    return df_data_balance_sheet
+
+def get_cash_flow(ticker):
+    df_cash_flow = pd.DataFrame()
+
+    with open('data/{}/CASH_FLOW.json'.format(ticker)) as cash_flow_json:
+        cash_flow = json.load(cash_flow_json)
+        df_cash_flow['date'] = [quarterly_report['fiscalDateEnding'] for
+                                         quarterly_report in cash_flow['quarterlyReports']]
+        df_cash_flow['operating_cash_flow'] = [quarterly_report['operatingCashflow'] for
+                                         quarterly_report in cash_flow['quarterlyReports']]
+        df_cash_flow['capex'] = [quarterly_report['capitalExpenditures'] for
+                                         quarterly_report in cash_flow['quarterlyReports']]
+
+    return df_cash_flow
+
+def get_income_statement(ticker):
     df_data_income_statement = pd.DataFrame()
 
     with open('data/{}/INCOME_STATEMENT.json'.format(ticker)) as income_statement_json:
@@ -40,29 +70,12 @@ def get_fundamentals(ticker):
         df_data_income_statement['EBIT'] = [quarterly_report['ebit'] for
                                             quarterly_report in income_statement['quarterlyReports']]
 
-    df_data_balance_sheet = pd.DataFrame()
+    return df_data_income_statement
 
-    with open('data/{}/BALANCE_SHEET.json'.format(ticker)) as balance_sheet_json:
-        balance_sheet = json.load(balance_sheet_json)
-        df_data_balance_sheet['date'] = [quarterly_report['fiscalDateEnding'] for
-                                         quarterly_report in balance_sheet['quarterlyReports']]
-        df_data_balance_sheet['shareholder_equity'] = [quarterly_report['totalShareholderEquity'] for
-                                                           quarterly_report in balance_sheet['quarterlyReports']]
-        df_data_balance_sheet['total_debt'] = [quarterly_report['shortLongTermDebtTotal'] for
-                                              quarterly_report in balance_sheet['quarterlyReports']]
-        df_data_balance_sheet['cash'] = [quarterly_report['cashAndCashEquivalentsAtCarryingValue'] for
-                                         quarterly_report in balance_sheet['quarterlyReports']]
-
-    df_cash_flow = pd.DataFrame()
-
-    with open('data/{}/CASH_FLOW.json'.format(ticker)) as cash_flow_json:
-        cash_flow = json.load(cash_flow_json)
-        df_cash_flow['date'] = [quarterly_report['fiscalDateEnding'] for
-                                         quarterly_report in cash_flow['quarterlyReports']]
-        df_cash_flow['operating_cash_flow'] = [quarterly_report['operatingCashflow'] for
-                                         quarterly_report in cash_flow['quarterlyReports']]
-        df_cash_flow['capex'] = [quarterly_report['capitalExpenditures'] for
-                                         quarterly_report in cash_flow['quarterlyReports']]
+def get_fundamentals(ticker):
+    df_data_income_statement = get_income_statement(ticker)
+    df_data_balance_sheet = get_balance_sheet(ticker)
+    df_cash_flow = get_cash_flow(ticker)
 
     df_merge1 = pd.merge(df_data_income_statement, df_data_balance_sheet, on='date')
     df_merged = pd.merge(df_merge1, df_cash_flow, on='date')

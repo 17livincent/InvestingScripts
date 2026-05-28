@@ -19,7 +19,9 @@ Tables:
 '''
 
 TABLE_COMPANIES_NAME = 'companies'
-TABLE_DATA_UPDATES_NAME = 'data_updates'
+TABLE_NAME_FUNDAMENTALS = 'fundamentals'
+TABLE_NAME_OPERATIONAL_METRICS = 'operational_metrics'
+TABLE_NAME_DATA_UPDATES = 'data_updates'
 
 TABLE_COMPANIES_DICT = {
     'ticker': '',
