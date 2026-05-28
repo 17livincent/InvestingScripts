@@ -18,11 +18,6 @@ OVERVIEW_PATH = 'data/{}/{}.json'
 
 def add_data_update(ticker_name, table_name, db_connection):
     CHECK_ENTRY = "SELECT * FROM data_updates WHERE ticker=%(ticker_name)s AND dataset=%(table_name)s"
-    UPDATE_ENTRY = "UPDATE {}" \
-    "SET last_updated={}," \
-    "WHERE ticker='{}' AND dataset='{}'".format(TABLE_DATA_UPDATES_NAME,
-                                                datetime.now(timezone.utc),
-                                                ticker_name, table_name)
 
     with db_connection.begin() as connection:
         df_check = pd.read_sql_query(CHECK_ENTRY, params={"ticker_name": ticker_name, "table_name": table_name}, con=connection)
