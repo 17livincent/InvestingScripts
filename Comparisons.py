@@ -77,7 +77,7 @@ df_comparison = pd.DataFrame(comparison_rows)
 df_comparison = df_comparison.sort_values(by='ttm_roic', ascending=False)
 print(df_comparison)
 
-top_ttm_roic = df_comparison.iloc[0]['Ticker']
+top_ttm_roic = df_comparison.iloc[0]['ticker']
 
 plt.style.use('dark_background')
 fig, ax = plt.subplots(FIGURE_ROWS, FIGURE_COLS, figsize=(18, 12))
