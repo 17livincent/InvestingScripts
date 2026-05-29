@@ -9,7 +9,7 @@ import numpy as np
 import sys
 
 def get_valuation(ticker, df_fundamentals):
-    df_fundamentals['date'] = pd.to_datetime(df_fundamentals['date'])
+    df_fundamentals['date'] = pd.to_datetime(df_fundamentals['date']).astype('datetime64[ns]')
     df_fundamentals = df_fundamentals.sort_values('date')
 
     rows_list = []
@@ -21,7 +21,7 @@ def get_valuation(ticker, df_fundamentals):
                                 'basic_shares': float(item['shares_outstanding_basic']),
                                 'diluted_shares': float(item['shares_outstanding_diluted'])})
         df_shares_outstanding = pd.DataFrame(rows_list)
-        df_shares_outstanding['date'] = pd.to_datetime(df_shares_outstanding['date'])
+        df_shares_outstanding['date'] = pd.to_datetime(df_shares_outstanding['date']).astype('datetime64[ns]')
         df_shares_outstanding = df_shares_outstanding.sort_values('date')
     except KeyError as e:
         print(e)
@@ -36,7 +36,7 @@ def get_valuation(ticker, df_fundamentals):
                                 'adjusted_close': float(weekly_stock['Weekly Adjusted Time Series'][item]['5. adjusted close']),
                                 'volume': float(weekly_stock['Weekly Adjusted Time Series'][item]['6. volume'])})
         df_weekly_stock_close = pd.DataFrame(rows_list)
-        df_weekly_stock_close['date'] = pd.to_datetime(df_weekly_stock_close['date'])
+        df_weekly_stock_close['date'] = pd.to_datetime(df_weekly_stock_close['date']).astype('datetime64[ns]')
         df_weekly_stock_close = df_weekly_stock_close.sort_values('date')
     except KeyError as e:
         print(e)

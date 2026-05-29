@@ -106,7 +106,7 @@ def add_company(ticker_name, db_connection):
         with open(overview_path, 'w') as export_json_file:
             json.dump(overview_json, export_json_file, indent=4)
     else:
-        print('WARNING: Import of {} failed.  Pulling from saved file if exists.'.format(OVERVIEW_FUNCTION_NAME))
+        print('WARNING: Import of {} failed.  {}.  Pulling from saved file if exists.'.format(OVERVIEW_FUNCTION_NAME, overview_json))
 
     with open(overview_path, 'r') as overview_file_json:
         overview_json = json.load(overview_file_json)
@@ -140,6 +140,7 @@ def get_from_fundamentals(ticker_name, db_connection):
     query_str = "SELECT * FROM {} WHERE ticker = '{}';".format(TABLE_NAME_FUNDAMENTALS, ticker_name)
     with db_connection.connect() as connection:
         df_fundamentals = pd.read_sql_query(query_str, con=connection)
+        df_fundamentals['date'] = pd.to_datetime(df_fundamentals['date'])
     return df_fundamentals
 
 
@@ -151,6 +152,7 @@ def get_from_operational_metrics(ticker_name, db_connection):
     query_str = "SELECT * FROM {} WHERE ticker = '{}';".format(TABLE_NAME_OPERATIONAL_METRICS, ticker_name)
     with db_connection.connect() as connection:
         df_operational_metrics = pd.read_sql_query(query_str, con=connection)
+        df_operational_metrics['date'] = pd.to_datetime(df_operational_metrics['date'])
     return df_operational_metrics
 
 def add_fundamentals_and_operational_metrics(ticker_name, db_connection):
@@ -165,6 +167,7 @@ def add_fundamentals_and_operational_metrics(ticker_name, db_connection):
     for function_name in FUNCTIONS_TO_UPDATE:
         function_path = SAVED_JSON_PATH.format(ticker_name, function_name)
         function_json = request_json(function_name, ticker_name)
+        time.sleep(1)
         if 'symbol' in function_json:
             Path('data/{}'.format(ticker_name)).mkdir(exist_ok=True)
             with open(function_path, 'w') as export_json_file:
@@ -172,7 +175,6 @@ def add_fundamentals_and_operational_metrics(ticker_name, db_connection):
         else:
             print('WARNING: Import of {} failed.  {}\r\n.  ' \
             'Pulling from saved file if exists.'.format(function_name, function_json))
-        time.sleep(1)
 
     df_fundamentals = get_fundamentals(ticker_name)
     df_fundamentals['ticker'] = ticker_name
@@ -212,6 +214,8 @@ def append_fundamentals(ticker_name, df_fundamentals, db_connection):
     "cost_of_revenue, " \
     "operating_income, " \
     "net_income, " \
+    "income_before_tax, " \
+    "income_tax_expense, " \
     "operating_cash_flow, " \
     "capex, " \
     "total_debt, " \
@@ -223,6 +227,8 @@ def append_fundamentals(ticker_name, df_fundamentals, db_connection):
     ":cost_of_revenue," \
     ":operating_income," \
     ":net_income," \
+    ":income_before_tax," \
+    ":income_tax_expense," \
     ":operating_cash_flow," \
     ":capex," \
     ":total_debt," \
@@ -239,6 +245,8 @@ def append_fundamentals(ticker_name, df_fundamentals, db_connection):
                 'cost_of_revenue': float(row['cost_of_revenue']),
                 'operating_income': float(row['operating_income']),
                 'net_income': float(row['net_income']),
+                'income_before_tax': float(row['income_before_tax']),
+                'income_tax_expense': float(row['income_tax_expense']),
                 'operating_cash_flow': float(row['operating_cash_flow']),
                 'capex': float(row['capex']),
                 'total_debt': float(row['total_debt']),
@@ -259,6 +267,7 @@ def append_operational_metrics(ticker_name, df_operational_metrics, db_connectio
     "roic," \
     "roe," \
     "debt_to_equity," \
+    "nopat," \
     "gross_margin," \
     "operating_margin," \
     "net_margin," \
@@ -266,14 +275,19 @@ def append_operational_metrics(ticker_name, df_operational_metrics, db_connectio
     "fcf_margin," \
     "revenue_growth_yoy," \
     "ttm_roic," \
+    "ttm_net_income," \
+    "ttm_operating_income," \
+    "ttm_fcf," \
     "ttm_operating_margin," \
     "ttm_net_margin," \
-    "ttm_fcf_margin)" \
+    "ttm_fcf_margin," \
+    "ttm_ocf_margin)" \
     "VALUES (:ticker," \
     ":date," \
     ":roic," \
     ":roe," \
     ":debt_to_equity," \
+    ":nopat," \
     ":gross_margin," \
     ":operating_margin," \
     ":net_margin," \
@@ -281,9 +295,13 @@ def append_operational_metrics(ticker_name, df_operational_metrics, db_connectio
     ":fcf_margin," \
     ":revenue_growth_yoy," \
     ":ttm_roic," \
+    ":ttm_net_income," \
+    ":ttm_operating_income," \
+    ":ttm_fcf," \
     ":ttm_operating_margin," \
     ":ttm_net_margin," \
-    ":ttm_fcf_margin)".format(TABLE_NAME_OPERATIONAL_METRICS))
+    ":ttm_fcf_margin," \
+    ":ttm_ocf_margin)".format(TABLE_NAME_OPERATIONAL_METRICS))
 
     with db_connection.begin() as connection:
         for index, row in df_operational_metrics.iterrows():
@@ -294,6 +312,7 @@ def append_operational_metrics(ticker_name, df_operational_metrics, db_connectio
                 'roic': float(row['roic']),
                 'roe': float(row['roe']),
                 'debt_to_equity': float(row['debt_to_equity']),
+                'nopat': float(row['nopat']),
                 'gross_margin': float(row['gross_margin']),
                 'operating_margin': float(row['operating_margin']),
                 'net_margin': float(row['net_margin']),
@@ -301,9 +320,13 @@ def append_operational_metrics(ticker_name, df_operational_metrics, db_connectio
                 'fcf_margin': float(row['fcf_margin']),
                 'revenue_growth_yoy': float(row['revenue_growth_yoy']),
                 'ttm_roic': float(row['ttm_roic']),
+                'ttm_net_income': float(row['ttm_net_income']),
+                'ttm_operating_income': float(row['ttm_operating_income']),
+                'ttm_fcf': float(row['ttm_fcf']),
                 'ttm_operating_margin': float(row['ttm_operating_margin']),
                 'ttm_net_margin': float(row['ttm_net_margin']),
-                'ttm_fcf_margin': float(row['ttm_fcf_margin'])
+                'ttm_fcf_margin': float(row['ttm_fcf_margin']),
+                'ttm_ocf_margin': float(row['ttm_ocf_margin'])
             })
         print('Added {} for {}.'.format(TABLE_NAME_OPERATIONAL_METRICS, ticker_name))
     DataUpdates.add_data_update(ticker_name, TABLE_NAME_OPERATIONAL_METRICS, db_connection)
@@ -317,7 +340,10 @@ def add_update_ticker(ticker_name, db_connection):
     last_update = DataUpdates.get_last_update(ticker_name, TABLE_COMPANIES_NAME, db_connection)
     needs_updated = DataUpdates.check_needs_update(TABLE_COMPANIES_NAME, last_update)
     if(needs_updated == True):
-        add_company(ticker_name, db_connection)
+        try:
+            add_company(ticker_name, db_connection)
+        except FileNotFoundError as e:
+            print(e)
     else:
         print('Already have entry in {} for {}.'.format(TABLE_COMPANIES_NAME, ticker_name))
     print(get_from_companies(ticker_name, db_connection))
@@ -332,20 +358,28 @@ def add_update_ticker(ticker_name, db_connection):
                                        last_updated_fundamentals) == True) or
     (DataUpdates.check_needs_update(TABLE_NAME_OPERATIONAL_METRICS,
                                     last_update_operational_metrics) == True)):
-        add_fundamentals_and_operational_metrics(ticker_name,
-                                                 db_connection)
+        try:
+            add_fundamentals_and_operational_metrics(ticker_name,
+                                                     db_connection)
+        except FileNotFoundError as e:
+            print(e)
     else:
         print('Already have entry in {} or {} for {}.'.format(TABLE_NAME_FUNDAMENTALS,
                                                             TABLE_NAME_OPERATIONAL_METRICS,
                                                             ticker_name))
 
-ticker_list = [
-    'SNDK',
-    'CRWD'
-    ]
-db_connection = get_db_connection()
+def main():
+    ticker_list = [
+        'SNDK',
+        'CRWD',
+        'APH'
+        ]
+    db_connection = get_db_connection()
 
-for ticker in ticker_list:
-    add_update_ticker(ticker, db_connection)
-    print(get_from_fundamentals(ticker, db_connection))
-    print(get_from_operational_metrics(ticker, db_connection))
+    for ticker in ticker_list:
+        add_update_ticker(ticker, db_connection)
+        print(get_from_fundamentals(ticker, db_connection))
+        print(get_from_operational_metrics(ticker, db_connection))
+
+if __name__ == "__main__":
+    main()

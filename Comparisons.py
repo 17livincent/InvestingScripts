@@ -1,21 +1,23 @@
 """
     Compare multiple companies.
 """
-from OperationalMetrics import read_saved_fundamentals, calculate_fundamentals, get_latest_metrics
+from OperationalMetrics import get_latest_metrics
 from ValuationMetrics import get_valuation, get_latest_valuation
+from TickerData import get_from_fundamentals, get_from_operational_metrics, add_update_ticker
+from DBConnection import get_db_connection
 import pandas as pd
 import matplotlib.pyplot as plt
 from matplotlib.ticker import PercentFormatter
 from datetime import datetime, timedelta
 
 tickers = [
-    'PLTR',
+    # 'PLTR',
     # 'TEAM',
     'APH',
-    'ETN',
+    # 'ETN',
     # 'F',
     'SNDK',
-    'MU',
+    # 'MU',
     # 'NVDA',
     # 'AVGO',
     # 'META',
@@ -23,9 +25,9 @@ tickers = [
     # 'MA',
     # 'TMUS',
     # 'VZ',
-    'FDX',
+    # 'FDX',
     'CRWD',
-    'CVX'
+    # 'CVX'
     ]
 
 FIGURE_ROWS = 4
@@ -53,12 +55,15 @@ df_calculated_all = {}
 comparison_rows = []
 
 now = pd.to_datetime(datetime.now())
+db_connection = get_db_connection()
 
 for ticker in tickers:
+    add_update_ticker(ticker, db_connection)
+
     df_calculated = pd.DataFrame()
     try:
-        df_fundamentals = read_saved_fundamentals(ticker)
-        df_calculated = pd.merge(df_fundamentals, calculate_fundamentals(df_fundamentals), on='date')
+        df_fundamentals = get_from_fundamentals(ticker, db_connection)
+        df_calculated = pd.merge(df_fundamentals, get_from_operational_metrics(ticker, db_connection), on='date')
         df_calculated = get_valuation(ticker, df_calculated)
 
         comparison_dict = get_latest_metrics(df_calculated, ticker)

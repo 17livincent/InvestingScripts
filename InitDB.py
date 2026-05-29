@@ -49,6 +49,9 @@ CREATE TABLE fundamentals (
     cost_of_revenue DOUBLE PRECISION,
     operating_income DOUBLE PRECISION,
     net_income DOUBLE PRECISION,
+    income_before_tax DOUBLE PRECISION,
+    income_tax_expense DOUBLE PRECISION,
+
     operating_cash_flow DOUBLE PRECISION,
     capex DOUBLE PRECISION,
 
@@ -67,20 +70,24 @@ CREATE TABLE operational_metrics (
     roic DOUBLE PRECISION,
     roe DOUBLE PRECISION,
     debt_to_equity DOUBLE PRECISION,
+    nopat DOUBLE PRECISION,
 
     gross_margin DOUBLE PRECISION,
     operating_margin DOUBLE PRECISION,
     net_margin DOUBLE PRECISION,
-
     ocf_margin DOUBLE PRECISION,
     fcf_margin DOUBLE PRECISION,
 
     revenue_growth_yoy DOUBLE PRECISION,
 
     ttm_roic DOUBLE PRECISION,
+    ttm_net_income DOUBLE PRECISION,
+    ttm_operating_income DOUBLE PRECISION,
+    ttm_fcf DOUBLE PRECISION,
     ttm_operating_margin DOUBLE PRECISION,
     ttm_net_margin DOUBLE PRECISION,
     ttm_fcf_margin DOUBLE PRECISION,
+    ttm_ocf_margin DOUBLE PRECISION,
 
     PRIMARY KEY (ticker, date)
 );
@@ -174,8 +181,24 @@ ON operational_metrics(ttm_roic DESC);
 ]
 
 def init_db_tables(engine):
-    with engine.begin() as conn:
-        for sql in TABLES:
-            conn.execute(text(sql))
+    for sql in TABLES:
+        try:
+            with engine.begin() as conn:
+                conn.execute(text(sql))
+        except Exception as e:
+            print(e)
+    for index in ADD_INDICES:
+        try:
+            with engine.begin() as conn:
+                conn.execute(text(index))
+        except Exception as e:
+            print(e)
 
     print("Database initialized.")
+
+def main():
+    db_connection = get_db_connection()
+    init_db_tables(db_connection)
+
+if __name__ == "__main__":
+    main()

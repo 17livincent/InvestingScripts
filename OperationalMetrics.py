@@ -63,12 +63,10 @@ def get_income_statement(ticker):
                                                  quarterly_report in income_statement['quarterlyReports']]
         df_data_income_statement['operating_income'] = [quarterly_report['operatingIncome'] for
                                                        quarterly_report in income_statement['quarterlyReports']]
-        df_data_income_statement['IncomeBeforeTax'] = [quarterly_report['incomeBeforeTax'] for
+        df_data_income_statement['income_before_tax'] = [quarterly_report['incomeBeforeTax'] for
                                                        quarterly_report in income_statement['quarterlyReports']]
-        df_data_income_statement['IncomeTaxExpense'] = [quarterly_report['incomeTaxExpense'] for
+        df_data_income_statement['income_tax_expense'] = [quarterly_report['incomeTaxExpense'] for
                                                         quarterly_report in income_statement['quarterlyReports']]
-        df_data_income_statement['EBIT'] = [quarterly_report['ebit'] for
-                                            quarterly_report in income_statement['quarterlyReports']]
 
     return df_data_income_statement
 
@@ -109,7 +107,7 @@ def calculate_fundamentals(df_fundmentals):
     df_calculated['net_margin'] = df_fundmentals['net_income'] / df_fundmentals['total_revenue']
 
     # Calculate effective tax rate
-    df_calculated['effective_tax_rate'] = (df_fundmentals['IncomeTaxExpense'] / df_fundmentals['IncomeBeforeTax']).clip(lower=0, upper=0.35)
+    df_calculated['effective_tax_rate'] = (df_fundmentals['income_tax_expense'] / df_fundmentals['income_before_tax']).clip(lower=0, upper=0.35)
     # Calculate ROIC
     df_calculated['invested_capital'] = df_fundmentals['total_debt'] + df_fundmentals['shareholder_equity'] - df_fundmentals['cash']
     df_calculated['invested_capital'] = df_calculated['invested_capital'].where(df_calculated['invested_capital'] > 0)
