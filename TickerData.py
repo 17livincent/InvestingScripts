@@ -340,6 +340,16 @@ class TableSharesOutstanding():
         return df_shares_outstanding
 
 class TablePricesWeekly():
+    def get_latest_date(ticker_name, db_connection):
+        latest_date = None
+        check_latest_date = "SELECT MAX (date) FROM {} WHERE ticker=%(ticker_name)s;".format(TABLE_NAME_PRICES_WEEKLY)
+        df_latest_date = pd.read_sql_query(check_latest_date,
+                                            params={"ticker_name": ticker_name},
+                                            con=db_connection)
+        if df_latest_date['max'].iloc[0] != None:
+            latest_date = pd.to_datetime(df_latest_date['max'], utc=True).iloc[0]
+        return latest_date
+
     def get_from(ticker_name, db_connection):
         """
             Get all rows from 'prices_weekly' of the given ticker.
@@ -442,7 +452,7 @@ def add_update_ticker(ticker_name, db_connection):
         print('Already have entry in {} for {}.'.format(TABLE_NAME_SHARES_OUTSTANDING, ticker_name))
     print(TableSharesOutstanding.get_from(ticker_name, db_connection))
 
-    last_update = DataUpdates.get_last_update(ticker_name, TABLE_NAME_PRICES_WEEKLY, db_connection)
+    last_update = TablePricesWeekly.get_latest_date(ticker_name, db_connection)
     needs_updated = DataUpdates.check_needs_update(TABLE_NAME_PRICES_WEEKLY, last_update)
     if(needs_updated == True):
         try:
