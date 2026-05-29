@@ -462,21 +462,3 @@ def add_update_ticker(ticker_name, db_connection):
     else:
         print('Already have entry in {} for {}.'.format(TABLE_NAME_PRICES_WEEKLY, ticker_name))
     print(TablePricesWeekly.get_from(ticker_name, db_connection))
-
-
-
-def main():
-    ticker_list = [
-        'SNDK',
-        'CRWD',
-        'APH'
-        ]
-    db_connection = get_db_connection()
-
-    for ticker in ticker_list:
-        add_update_ticker(ticker, db_connection)
-        print(TableFundamentals.get_from(ticker, db_connection))
-        print(TableOperationalMetrics.get_from(ticker, db_connection))
-
-if __name__ == "__main__":
-    main()

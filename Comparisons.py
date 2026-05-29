@@ -11,8 +11,8 @@ from matplotlib.ticker import PercentFormatter
 from datetime import datetime, timedelta
 
 tickers = [
-    # 'PLTR',
-    # 'TEAM',
+    'PLTR',
+    'TEAM',
     'APH',
     # 'ETN',
     # 'F',
