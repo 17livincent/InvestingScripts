@@ -3,7 +3,7 @@
 """
 from OperationalMetrics import get_latest_metrics
 from ValuationMetrics import get_valuation, get_latest_valuation
-from TickerData import get_from_fundamentals, get_from_operational_metrics, add_update_ticker
+from TickerData import TableFundamentals, TableOperationalMetrics, add_update_ticker
 from DBConnection import get_db_connection
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -62,8 +62,8 @@ for ticker in tickers:
 
     df_calculated = pd.DataFrame()
     try:
-        df_fundamentals = get_from_fundamentals(ticker, db_connection)
-        df_calculated = pd.merge(df_fundamentals, get_from_operational_metrics(ticker, db_connection), on='date')
+        df_fundamentals = TableFundamentals.get_from(ticker, db_connection)
+        df_calculated = pd.merge(df_fundamentals, TableOperationalMetrics.get_from(ticker, db_connection), on='date')
         df_calculated = get_valuation(ticker, df_calculated)
 
         comparison_dict = get_latest_metrics(df_calculated, ticker)
@@ -80,7 +80,7 @@ for ticker in tickers:
 
 df_comparison = pd.DataFrame(comparison_rows)
 df_comparison = df_comparison.sort_values(by='ttm_roic', ascending=False)
-print(df_comparison)
+print(df_comparison.to_string())
 
 top_ttm_roic = df_comparison.iloc[0]['ticker']
 
@@ -88,26 +88,25 @@ plt.style.use('dark_background')
 fig, ax = plt.subplots(FIGURE_ROWS, FIGURE_COLS, figsize=(18, 12))
 
 for ticker in tickers:
+    for graph_num, graph_x_y in enumerate(graphs):
+        ticker_calculated = df_calculated_all[ticker]
+        since_calculated = ticker_calculated[now - ticker_calculated['date'] < timedelta(weeks=time_frames[graph_x_y['y']])]
 
-        for graph_num, graph_x_y in enumerate(graphs):
-            ticker_calculated = df_calculated_all[ticker]
-            since_calculated = ticker_calculated[now - ticker_calculated['date'] < timedelta(weeks=time_frames[graph_x_y['y']])]
+        if not df_calculated_all[ticker].empty:
 
-            if not df_calculated_all[ticker].empty:
-
-                row, col = divmod(graph_num, FIGURE_COLS)
-                ax[row,col].set_title(graph_x_y['y'])
-                try:
-                    ax[row,col].plot(since_calculated[graph_x_y['x']],
-                                    since_calculated[graph_x_y['y']],
-                                    label=ticker,
-                                    linewidth=(3 if ticker == top_ttm_roic else 1.5))
-                    ax[row,col].legend(loc='center left', fontsize=8, bbox_to_anchor=(1, 0.5))
-                except KeyError as e:
-                    print("WARNING key {} missing for {}.".format(graph_x_y['y'], ticker))
-                ax[row,col].grid(True, alpha=0.3)
-                if graph_x_y['percentFormat'] == True:
-                    ax[row,col].yaxis.set_major_formatter(PercentFormatter(1.0))
+            row, col = divmod(graph_num, FIGURE_COLS)
+            ax[row,col].set_title(graph_x_y['y'])
+            try:
+                ax[row,col].plot(since_calculated[graph_x_y['x']],
+                                since_calculated[graph_x_y['y']],
+                                label=ticker,
+                                linewidth=(3 if ticker == top_ttm_roic else 1.5))
+                ax[row,col].legend(loc='center left', fontsize=8, bbox_to_anchor=(1, 0.5))
+            except KeyError as e:
+                print("WARNING key {} missing for {}.".format(graph_x_y['y'], ticker))
+            ax[row,col].grid(True, alpha=0.3)
+            if graph_x_y['percentFormat'] == True:
+                ax[row,col].yaxis.set_major_formatter(PercentFormatter(1.0))
 
 fig.suptitle('Comparisons', fontsize=24)
 fig.tight_layout()

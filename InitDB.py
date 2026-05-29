@@ -180,6 +180,74 @@ ON operational_metrics(ttm_roic DESC);
 """
 ]
 
+INSERT_STATEMENT_FUNDAMENTALS = text("INSERT INTO {} (ticker, " \
+    "date, " \
+    "total_revenue, " \
+    "cost_of_revenue, " \
+    "operating_income, " \
+    "net_income, " \
+    "income_before_tax, " \
+    "income_tax_expense, " \
+    "operating_cash_flow, " \
+    "capex, " \
+    "total_debt, " \
+    "cash, " \
+    "shareholder_equity)" \
+    "VALUES (:ticker," \
+    ":date," \
+    ":total_revenue," \
+    ":cost_of_revenue," \
+    ":operating_income," \
+    ":net_income," \
+    ":income_before_tax," \
+    ":income_tax_expense," \
+    ":operating_cash_flow," \
+    ":capex," \
+    ":total_debt," \
+    ":cash," \
+    ":shareholder_equity)".format(TABLE_NAME_FUNDAMENTALS))
+
+INSERT_STATEMENT_OPERATIONAL_METRICS = text("INSERT INTO {} (ticker, " \
+    "date," \
+    "roic," \
+    "roe," \
+    "debt_to_equity," \
+    "nopat," \
+    "gross_margin," \
+    "operating_margin," \
+    "net_margin," \
+    "ocf_margin," \
+    "fcf_margin," \
+    "revenue_growth_yoy," \
+    "ttm_roic," \
+    "ttm_net_income," \
+    "ttm_operating_income," \
+    "ttm_fcf," \
+    "ttm_operating_margin," \
+    "ttm_net_margin," \
+    "ttm_fcf_margin," \
+    "ttm_ocf_margin)" \
+    "VALUES (:ticker," \
+    ":date," \
+    ":roic," \
+    ":roe," \
+    ":debt_to_equity," \
+    ":nopat," \
+    ":gross_margin," \
+    ":operating_margin," \
+    ":net_margin," \
+    ":ocf_margin," \
+    ":fcf_margin," \
+    ":revenue_growth_yoy," \
+    ":ttm_roic," \
+    ":ttm_net_income," \
+    ":ttm_operating_income," \
+    ":ttm_fcf," \
+    ":ttm_operating_margin," \
+    ":ttm_net_margin," \
+    ":ttm_fcf_margin," \
+    ":ttm_ocf_margin)".format(TABLE_NAME_OPERATIONAL_METRICS))
+
 def init_db_tables(engine):
     for sql in TABLES:
         try:
