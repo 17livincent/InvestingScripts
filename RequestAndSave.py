@@ -8,7 +8,6 @@ from pathlib import Path
 import pandas as pd
 import time
 import argparse
-from OperationalMetrics import get_and_save_fundamentals
 
 functions = [
     'BALANCE_SHEET',
@@ -64,22 +63,3 @@ def get_most_recent_date(function_name, function_json):
 
     recent_date = pd.to_datetime(recent_date)
     return recent_date
-
-def main():
-    parser = argparse.ArgumentParser(prog='RequestAndSave.py', description='Get data from AlphaVantage.')
-    parser.add_argument('-t', '--ticker', required=True, help='Stock ticker')
-    parser.add_argument('-a', '--get-all', required=False, action='store_true', help='Pull, save, and overwrite all data.  Otherwise, leave the existing files alone.')
-
-    args = parser.parse_args()
-    print("Stock ticker: {}".format(args.ticker))
-    for function_name in functions:
-        if (args.get_all == False) and (Path('data/{}/{}.json'.format(args.ticker, function_name)).exists()):
-            continue
-        print("Requesting {} data...".format(function_name))
-        time.sleep(1)
-        request_and_save_json(function_name, args.ticker)
-
-    get_and_save_fundamentals(args.ticker)
-
-if __name__ == "__main__":
-    main()

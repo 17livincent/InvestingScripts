@@ -2,45 +2,43 @@
     Calculate short-term valuation metrics such as P/E, P/FCF, and EV/EBIT.
 """
 
-from OperationalMetrics import read_saved_fundamentals
 import json
 import pandas as pd
 import numpy as np
 import sys
 
+def get_shares_outstanding(ticker):
+    rows_list = []
+    with open('data/{}/SHARES_OUTSTANDING.json'.format(ticker)) as shares_outstanding_json:
+        shares_outstanding = json.load(shares_outstanding_json)
+        for item in shares_outstanding['data']:
+            rows_list.append({'date': item['date'],
+                            'basic_shares': float(item['shares_outstanding_basic']),
+                            'diluted_shares': float(item['shares_outstanding_diluted'])})
+    df_shares_outstanding = pd.DataFrame(rows_list)
+    df_shares_outstanding['date'] = pd.to_datetime(df_shares_outstanding['date']).astype('datetime64[ns]')
+    df_shares_outstanding = df_shares_outstanding.sort_values('date')
+    return df_shares_outstanding
+
+def get_timeseries_weekly_adjusted(ticker):
+    rows_list = []
+    with open('data/{}/TIME_SERIES_WEEKLY_ADJUSTED.json'.format(ticker)) as weekly_stock_json:
+        weekly_stock = json.load(weekly_stock_json)
+        for item in weekly_stock['Weekly Adjusted Time Series'].keys():
+            rows_list.append({'date': item,
+                            'adjusted_close': float(weekly_stock['Weekly Adjusted Time Series'][item]['5. adjusted close']),
+                            'volume': float(weekly_stock['Weekly Adjusted Time Series'][item]['6. volume'])})
+    df_weekly_stock_close = pd.DataFrame(rows_list)
+    df_weekly_stock_close['date'] = pd.to_datetime(df_weekly_stock_close['date']).astype('datetime64[ns]')
+    df_weekly_stock_close = df_weekly_stock_close.sort_values('date')
+    return df_weekly_stock_close
+
 def get_valuation(ticker, df_fundamentals):
     df_fundamentals['date'] = pd.to_datetime(df_fundamentals['date']).astype('datetime64[ns]')
     df_fundamentals = df_fundamentals.sort_values('date')
 
-    rows_list = []
-    try:
-        with open('data/{}/SHARES_OUTSTANDING.json'.format(ticker)) as shares_outstanding_json:
-            shares_outstanding = json.load(shares_outstanding_json)
-            for item in shares_outstanding['data']:
-                rows_list.append({'date': item['date'],
-                                'basic_shares': float(item['shares_outstanding_basic']),
-                                'diluted_shares': float(item['shares_outstanding_diluted'])})
-        df_shares_outstanding = pd.DataFrame(rows_list)
-        df_shares_outstanding['date'] = pd.to_datetime(df_shares_outstanding['date']).astype('datetime64[ns]')
-        df_shares_outstanding = df_shares_outstanding.sort_values('date')
-    except KeyError as e:
-        print(e)
-        print(ticker)
-
-    rows_list = []
-    try:
-        with open('data/{}/TIME_SERIES_WEEKLY_ADJUSTED.json'.format(ticker)) as weekly_stock_json:
-            weekly_stock = json.load(weekly_stock_json)
-            for item in weekly_stock['Weekly Adjusted Time Series'].keys():
-                rows_list.append({'date': item,
-                                'adjusted_close': float(weekly_stock['Weekly Adjusted Time Series'][item]['5. adjusted close']),
-                                'volume': float(weekly_stock['Weekly Adjusted Time Series'][item]['6. volume'])})
-        df_weekly_stock_close = pd.DataFrame(rows_list)
-        df_weekly_stock_close['date'] = pd.to_datetime(df_weekly_stock_close['date']).astype('datetime64[ns]')
-        df_weekly_stock_close = df_weekly_stock_close.sort_values('date')
-    except KeyError as e:
-        print(e)
-        print(ticker)
+    df_shares_outstanding = get_shares_outstanding(ticker)
+    df_weekly_stock_close = get_timeseries_weekly_adjusted(ticker)
 
     df_merged = pd.merge_asof(
         df_fundamentals,

@@ -161,24 +161,13 @@ def get_latest_metrics(df_calculated, ticker):
         'debt_to_equity': latest['debt_to_equity']
     }
 
-def get_and_save_fundamentals(ticker):
-    df_calculated = get_fundamentals(ticker)
-    print("Saving to CSV: {}".format(ticker))
-    df_calculated.to_csv(CALCULATED_FUNDAMENTALS_PATH.format(ticker), index=False)
-    return df_calculated
-
-def read_saved_fundamentals(ticker):
-    df_fundamentals = pd.read_csv(CALCULATED_FUNDAMENTALS_PATH.format(ticker))
-    df_fundamentals['date'] = pd.to_datetime(df_fundamentals['date'])
-    return df_fundamentals
-
 def main():
     parser = argparse.ArgumentParser(prog='CalculateFundamentals.py', description='Analyze a company\'s fundamentals.')
     parser.add_argument('-t', '--ticker', required=True, help='Stock ticker')
 
     args = parser.parse_args()
     print("Stock ticker: {}".format(args.ticker))
-    df_calculated = get_and_save_fundamentals(args.ticker)
+    df_calculated = get_fundamentals(args.ticker)
     print(df_calculated.columns)
 
 if __name__ == "__main__":

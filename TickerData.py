@@ -6,14 +6,20 @@ from RequestAndSave import request_json
 from DBConnection import get_db_connection
 from OperationalMetrics import (get_fundamentals,
                                 calculate_fundamentals)
+from ValuationMetrics import (get_shares_outstanding,
+                              get_timeseries_weekly_adjusted)
 from sqlalchemy import text
 from InitDB import (TABLE_COMPANIES_NAME,
                     TABLE_COMPANIES_DICT,
                     TABLE_NAME_FUNDAMENTALS,
                     TABLE_NAME_OPERATIONAL_METRICS,
+                    TABLE_NAME_SHARES_OUTSTANDING,
+                    TABLE_NAME_PRICES_WEEKLY,
                     TABLE_NAME_DATA_UPDATES,
                     INSERT_STATEMENT_FUNDAMENTALS,
-                    INSERT_STATEMENT_OPERATIONAL_METRICS)
+                    INSERT_STATEMENT_OPERATIONAL_METRICS,
+                    INSERT_STATEMENT_SHARES_OUTSTANDING,
+                    INSERT_STATEMENT_PRICES_WEEKLY)
 from pathlib import Path
 import json
 import pandas as pd
@@ -26,12 +32,14 @@ OVERVIEW_FUNCTION_NAME = 'OVERVIEW'
 BALANCE_SHEET_FUNCTION_NAME = 'BALANCE_SHEET'
 CASH_FLOW_FUNCTION_NAME = 'CASH_FLOW'
 INCOME_STATEMENT_FUNCTION_NAME = 'INCOME_STATEMENT'
+SHARES_OUTSTANDING_FUNCTION_NAME = 'SHARES_OUTSTANDING'
+PRICES_WEEKLY_FUNCTION_NAME = 'TIME_SERIES_WEEKLY_ADJUSTED'
 
 RECENCY = {
     'companies': 'quarter',
     'fundamentals': 'quarter',
     'operational_metrics': 'quarter',
-    'shares_oustanding': 'quarter',
+    'shares_outstanding': 'quarter',
     'prices_weekly': 'week'
 }
 
@@ -168,6 +176,43 @@ class TableFundamentals():
             print('Added {} for {}.'.format(TABLE_NAME_FUNDAMENTALS, ticker_name))
         DataUpdates.add_data_update(ticker_name, TABLE_NAME_FUNDAMENTALS, db_connection)
 
+    def update(ticker_name, db_connection):
+        """
+            Pull BALANCE_SHEET, CASH_FLOW, and INCOME_STATMENT from AlphaVantage.
+            Write them to local JSON files and push the new dataframe rows
+            to the 'fundamentals' and 'operational_metrics' tables.
+        """
+        FUNCTIONS_TO_UPDATE = [BALANCE_SHEET_FUNCTION_NAME,
+                            CASH_FLOW_FUNCTION_NAME,
+                            INCOME_STATEMENT_FUNCTION_NAME]
+        for function_name in FUNCTIONS_TO_UPDATE:
+            function_path = SAVED_JSON_PATH.format(ticker_name, function_name)
+            function_json = request_json(function_name, ticker_name)
+            time.sleep(1)
+            if 'symbol' in function_json:
+                Path('data/{}'.format(ticker_name)).mkdir(exist_ok=True)
+                with open(function_path, 'w') as export_json_file:
+                    json.dump(function_json, export_json_file, indent=4)
+            else:
+                print('WARNING: Import of {} failed.  {}\r\n.  ' \
+                'Pulling from saved file if exists.'.format(function_name, function_json))
+
+        df_fundamentals = get_fundamentals(ticker_name)
+        df_fundamentals['ticker'] = ticker_name
+
+        check_latest_date = "SELECT MAX (date) FROM {} WHERE ticker=%(ticker_name)s;".format(TABLE_NAME_FUNDAMENTALS)
+        df_latest_date = pd.read_sql_query(check_latest_date,
+                                            params={"ticker_name": ticker_name},
+                                            con=db_connection)
+        if df_latest_date['max'].iloc[0] == None:
+            pass
+        else:
+            latest_date = pd.to_datetime(df_latest_date['max']).iloc[0]
+            df_fundamentals = df_fundamentals[df_fundamentals['date'] > latest_date]
+        TableFundamentals.append(ticker_name, df_fundamentals, db_connection)
+
+        return df_fundamentals
+
 class TableOperationalMetrics():
     def get_from(ticker_name, db_connection):
         """
@@ -211,20 +256,66 @@ class TableOperationalMetrics():
             print('Added {} for {}.'.format(TABLE_NAME_OPERATIONAL_METRICS, ticker_name))
         DataUpdates.add_data_update(ticker_name, TABLE_NAME_OPERATIONAL_METRICS, db_connection)
 
+    def update(ticker_name, db_connection):
+        """
+            Update 'operational_metrics' table from the latest 'fundamentals' table.
+        """
+        df_fundamentals = TableFundamentals.get_from(ticker_name, db_connection)
 
+        operational_metrics = calculate_fundamentals(df_fundamentals)
+        operational_metrics['ticker'] = ticker_name
 
-def add_fundamentals_and_operational_metrics(ticker_name, db_connection):
-    """
-        Pull BALANCE_SHEET, CASH_FLOW, and INCOME_STATMENT from AlphaVantage.
-        Write them to local JSON files and push the new dataframe rows
-        to the 'fundamentals' and 'operational_metrics' tables.
-    """
-    FUNCTIONS_TO_UPDATE = [BALANCE_SHEET_FUNCTION_NAME,
-                           CASH_FLOW_FUNCTION_NAME,
-                           INCOME_STATEMENT_FUNCTION_NAME]
-    for function_name in FUNCTIONS_TO_UPDATE:
-        function_path = SAVED_JSON_PATH.format(ticker_name, function_name)
-        function_json = request_json(function_name, ticker_name)
+        # Push to the tables
+        for table_to_update in [{'df': operational_metrics,
+                                'table_name': TABLE_NAME_OPERATIONAL_METRICS,
+                                'append_function': TableOperationalMetrics.append}]:
+            check_latest_date = "SELECT MAX (date) FROM {} WHERE ticker=%(ticker_name)s;".format(table_to_update['table_name'])
+            df_latest_date = pd.read_sql_query(check_latest_date,
+                                                params={"ticker_name": ticker_name},
+                                                con=db_connection)
+            if df_latest_date['max'].iloc[0] == None:
+                pass
+            else:
+                latest_date = pd.to_datetime(df_latest_date['max']).iloc[0]
+                table_to_update['df'] = table_to_update['df'][table_to_update['df']['date'] > latest_date]
+            table_to_update['append_function'](ticker_name, table_to_update['df'], db_connection)
+
+        return operational_metrics
+
+class TableSharesOutstanding():
+    def get_from(ticker_name, db_connection):
+        """
+            Get all rows from 'shares_outstanding' of the given ticker.
+        """
+        query_str = "SELECT * FROM {} WHERE ticker = '{}';".format(TABLE_NAME_SHARES_OUTSTANDING, ticker_name)
+        with db_connection.connect() as connection:
+            df_shares_outstanding = pd.read_sql_query(query_str, con=connection)
+            df_shares_outstanding['date'] = pd.to_datetime(df_shares_outstanding['date'])
+        return df_shares_outstanding
+
+    def append(ticker_name, df_shares_outstanding, db_connection):
+        """
+            Insert new rows from df_shares_outstanding into 'shares_outstanding'.
+        """
+        with db_connection.begin() as connection:
+            for index, row in df_shares_outstanding.iterrows():
+                insert_statement = INSERT_STATEMENT_SHARES_OUTSTANDING
+                connection.execute(insert_statement, {
+                    'ticker': ticker_name,
+                    'date': row['date'],
+                    'basic_shares': row['basic_shares'],
+                    'diluted_shares': row['diluted_shares']
+                })
+            print('Added {} for {}.'.format(TABLE_NAME_SHARES_OUTSTANDING, ticker_name))
+        DataUpdates.add_data_update(ticker_name, TABLE_NAME_SHARES_OUTSTANDING, db_connection)
+
+    def update(ticker_name, db_connection):
+        """
+            Pull SHARES_OUTSTANDING from AlphaVantage.
+            Write them to a local JSON file and push the new dataframe rows to 'shares_outstanding'.
+        """
+        function_path = SAVED_JSON_PATH.format(ticker_name, SHARES_OUTSTANDING_FUNCTION_NAME)
+        function_json = request_json(SHARES_OUTSTANDING_FUNCTION_NAME, ticker_name)
         time.sleep(1)
         if 'symbol' in function_json:
             Path('data/{}'.format(ticker_name)).mkdir(exist_ok=True)
@@ -232,22 +323,10 @@ def add_fundamentals_and_operational_metrics(ticker_name, db_connection):
                 json.dump(function_json, export_json_file, indent=4)
         else:
             print('WARNING: Import of {} failed.  {}\r\n.  ' \
-            'Pulling from saved file if exists.'.format(function_name, function_json))
+            'Pulling from saved file if exists.'.format(SHARES_OUTSTANDING_FUNCTION_NAME, function_json))
 
-    df_fundamentals = get_fundamentals(ticker_name)
-    df_fundamentals['ticker'] = ticker_name
-
-    operational_metrics = calculate_fundamentals(df_fundamentals)
-    operational_metrics['ticker'] = ticker_name
-
-    # Push to the tables
-    for table_to_update in [{'df': df_fundamentals,
-                             'table_name': TABLE_NAME_FUNDAMENTALS,
-                             'append_function': TableFundamentals.append},
-                            {'df': operational_metrics,
-                             'table_name': TABLE_NAME_OPERATIONAL_METRICS,
-                             'append_function': TableOperationalMetrics.append}]:
-        check_latest_date = "SELECT MAX (date) FROM {} WHERE ticker=%(ticker_name)s;".format(table_to_update['table_name'])
+        df_shares_outstanding = get_shares_outstanding(ticker_name)
+        check_latest_date = "SELECT MAX (date) FROM {} WHERE ticker=%(ticker_name)s;".format(TABLE_NAME_SHARES_OUTSTANDING)
         df_latest_date = pd.read_sql_query(check_latest_date,
                                             params={"ticker_name": ticker_name},
                                             con=db_connection)
@@ -255,10 +334,65 @@ def add_fundamentals_and_operational_metrics(ticker_name, db_connection):
             pass
         else:
             latest_date = pd.to_datetime(df_latest_date['max']).iloc[0]
-            table_to_update['df'] = table_to_update['df'][table_to_update['df']['date'] > latest_date]
-        table_to_update['append_function'](ticker_name, table_to_update['df'], db_connection)
+            df_shares_outstanding = df_shares_outstanding[df_shares_outstanding['date'] > latest_date]
+        TableSharesOutstanding.append(ticker_name, df_shares_outstanding, db_connection)
 
-    return df_fundamentals, operational_metrics
+        return df_shares_outstanding
+
+class TablePricesWeekly():
+    def get_from(ticker_name, db_connection):
+        """
+            Get all rows from 'prices_weekly' of the given ticker.
+        """
+        query_str = "SELECT * FROM {} WHERE ticker = '{}';".format(TABLE_NAME_PRICES_WEEKLY, ticker_name)
+        with db_connection.connect() as connection:
+            df_prices_weekly = pd.read_sql_query(query_str, con=connection)
+            df_prices_weekly['date'] = pd.to_datetime(df_prices_weekly['date'])
+        return df_prices_weekly
+
+    def append(ticker_name, df_prices_weekly, db_connection):
+        """
+            Get all rows from 'prices_weekly' of the given ticker.
+        """
+        with db_connection.begin() as connection:
+            for index, row in df_prices_weekly.iterrows():
+                insert_statement = INSERT_STATEMENT_PRICES_WEEKLY
+                connection.execute(insert_statement, {
+                    'ticker': ticker_name,
+                    'date': row['date'],
+                    'adjusted_close': row['adjusted_close'],
+                    'volume': row['volume']
+                })
+            print('Added {} for {}.'.format(TABLE_NAME_PRICES_WEEKLY, ticker_name))
+        DataUpdates.add_data_update(ticker_name, TABLE_NAME_PRICES_WEEKLY, db_connection)
+
+    def update(ticker_name, db_connection):
+        """
+            Pull TIMER_SERIES_WEEKLY_ADJUSTED from AlphaVantage.
+            Write them to a local JSON file and push the new dataframe rows to 'prices_weekly'.
+        """
+        function_path = SAVED_JSON_PATH.format(ticker_name, PRICES_WEEKLY_FUNCTION_NAME)
+        function_json = request_json(PRICES_WEEKLY_FUNCTION_NAME, ticker_name)
+        time.sleep(1)
+        if 'Weekly Adjusted Time Series' in function_json:
+            Path('data/{}'.format(ticker_name)).mkdir(exist_ok=True)
+            with open(function_path, 'w') as export_json_file:
+                json.dump(function_json, export_json_file, indent=4)
+        else:
+            print('WARNING: Import of {} failed.  {}\r\n.  ' \
+            'Pulling from saved file if exists.'.format(PRICES_WEEKLY_FUNCTION_NAME, function_json))
+
+        df_prices_weekly = get_timeseries_weekly_adjusted(ticker_name)
+        check_latest_date = "SELECT MAX (date) FROM {} WHERE ticker=%(ticker_name)s;".format(TABLE_NAME_PRICES_WEEKLY)
+        df_latest_date = pd.read_sql_query(check_latest_date,
+                                            params={"ticker_name": ticker_name},
+                                            con=db_connection)
+        if df_latest_date['max'].iloc[0] == None:
+            pass
+        else:
+            latest_date = pd.to_datetime(df_latest_date['max']).iloc[0]
+            df_prices_weekly = df_prices_weekly[df_prices_weekly['date'] > latest_date]
+        TablePricesWeekly.append(ticker_name, df_prices_weekly, db_connection)
 
 
 
@@ -288,14 +422,38 @@ def add_update_ticker(ticker_name, db_connection):
     (DataUpdates.check_needs_update(TABLE_NAME_OPERATIONAL_METRICS,
                                     last_update_operational_metrics) == True)):
         try:
-            add_fundamentals_and_operational_metrics(ticker_name,
-                                                     db_connection)
+            TableFundamentals.update(ticker_name, db_connection)
+            TableOperationalMetrics.update(ticker_name, db_connection)
         except FileNotFoundError as e:
             print(e)
     else:
         print('Already have entry in {} or {} for {}.'.format(TABLE_NAME_FUNDAMENTALS,
                                                             TABLE_NAME_OPERATIONAL_METRICS,
                                                             ticker_name))
+
+    last_update = DataUpdates.get_last_update(ticker_name, TABLE_NAME_SHARES_OUTSTANDING, db_connection)
+    needs_updated = DataUpdates.check_needs_update(TABLE_NAME_SHARES_OUTSTANDING, last_update)
+    if(needs_updated == True):
+        try:
+            TableSharesOutstanding.update(ticker_name, db_connection)
+        except FileNotFoundError as e:
+            print(e)
+    else:
+        print('Already have entry in {} for {}.'.format(TABLE_NAME_SHARES_OUTSTANDING, ticker_name))
+    print(TableSharesOutstanding.get_from(ticker_name, db_connection))
+
+    last_update = DataUpdates.get_last_update(ticker_name, TABLE_NAME_PRICES_WEEKLY, db_connection)
+    needs_updated = DataUpdates.check_needs_update(TABLE_NAME_PRICES_WEEKLY, last_update)
+    if(needs_updated == True):
+        try:
+            TablePricesWeekly.update(ticker_name, db_connection)
+        except FileNotFoundError as e:
+            print(e)
+    else:
+        print('Already have entry in {} for {}.'.format(TABLE_NAME_PRICES_WEEKLY, ticker_name))
+    print(TablePricesWeekly.get_from(ticker_name, db_connection))
+
+
 
 def main():
     ticker_list = [

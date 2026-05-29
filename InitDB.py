@@ -21,6 +21,8 @@ Tables:
 TABLE_COMPANIES_NAME = 'companies'
 TABLE_NAME_FUNDAMENTALS = 'fundamentals'
 TABLE_NAME_OPERATIONAL_METRICS = 'operational_metrics'
+TABLE_NAME_SHARES_OUTSTANDING = 'shares_outstanding'
+TABLE_NAME_PRICES_WEEKLY = 'prices_weekly'
 TABLE_NAME_DATA_UPDATES = 'data_updates'
 
 TABLE_COMPANIES_DICT = {
@@ -247,6 +249,24 @@ INSERT_STATEMENT_OPERATIONAL_METRICS = text("INSERT INTO {} (ticker, " \
     ":ttm_net_margin," \
     ":ttm_fcf_margin," \
     ":ttm_ocf_margin)".format(TABLE_NAME_OPERATIONAL_METRICS))
+
+INSERT_STATEMENT_SHARES_OUTSTANDING = text("INSERT INTO {} (ticker, " \
+    "date, " \
+    "basic_shares," \
+    "diluted_shares)" \
+    "VALUES (:ticker," \
+    ":date," \
+    ":basic_shares," \
+    ":diluted_shares)".format(TABLE_NAME_SHARES_OUTSTANDING))
+
+INSERT_STATEMENT_PRICES_WEEKLY = text("INSERT INTO {} (ticker, " \
+"date, " \
+"adjusted_close, " \
+"volume)" \
+"VALUES (:ticker," \
+":date," \
+":adjusted_close," \
+":volume)".format(TABLE_NAME_PRICES_WEEKLY))
 
 def init_db_tables(engine):
     for sql in TABLES:
