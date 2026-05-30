@@ -27,6 +27,8 @@ tickers = [
     # 'VZ',
     # 'FDX',
     'CRWD',
+    'GTLB',
+    'DELL',
     # 'CVX'
     ]
 
