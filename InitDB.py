@@ -24,6 +24,7 @@ TABLE_NAME_OPERATIONAL_METRICS = 'operational_metrics'
 TABLE_NAME_SHARES_OUTSTANDING = 'shares_outstanding'
 TABLE_NAME_PRICES_WEEKLY = 'prices_weekly'
 TABLE_NAME_DATA_UPDATES = 'data_updates'
+TABLE_NAME_VALUATION_METRICS = 'valuation_metrics'
 
 TABLE_COMPANIES_DICT = {
     'ticker': '',
@@ -267,6 +268,25 @@ INSERT_STATEMENT_PRICES_WEEKLY = text("INSERT INTO {} (ticker, " \
 ":date," \
 ":adjusted_close," \
 ":volume)".format(TABLE_NAME_PRICES_WEEKLY))
+
+INSERT_STATEMENT_VALUATION_METRICS = text("INSERT INTO {} (ticker, " \
+"date," \
+"market_cap," \
+"enterprise_value," \
+"pe_ttm," \
+"pfcf," \
+"ev_ebit," \
+"ev_fcf," \
+"ev_nopat)" \
+"VALUES (:ticker," \
+":date," \
+":market_cap," \
+":enterprise_value," \
+":pe_ttm," \
+":pfcf," \
+":ev_ebit," \
+":ev_fcf," \
+":ev_nopat)".format(TABLE_NAME_VALUATION_METRICS))
 
 def init_db_tables(engine):
     for sql in TABLES:

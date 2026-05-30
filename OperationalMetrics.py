@@ -18,7 +18,7 @@ def compute_ttm(series):
 def safe_divide(a, b):
     return np.where(b != 0, a / b, np.nan)
 
-def get_balance_sheet(ticker):
+def get_saved_balance_sheet(ticker):
     df_data_balance_sheet = pd.DataFrame()
 
     with open('data/{}/BALANCE_SHEET.json'.format(ticker)) as balance_sheet_json:
@@ -34,7 +34,7 @@ def get_balance_sheet(ticker):
 
     return df_data_balance_sheet
 
-def get_cash_flow(ticker):
+def get_saved_cash_flow(ticker):
     df_cash_flow = pd.DataFrame()
 
     with open('data/{}/CASH_FLOW.json'.format(ticker)) as cash_flow_json:
@@ -48,7 +48,7 @@ def get_cash_flow(ticker):
 
     return df_cash_flow
 
-def get_income_statement(ticker):
+def get_saved_income_statement(ticker):
     df_data_income_statement = pd.DataFrame()
 
     with open('data/{}/INCOME_STATEMENT.json'.format(ticker)) as income_statement_json:
@@ -70,10 +70,10 @@ def get_income_statement(ticker):
 
     return df_data_income_statement
 
-def get_fundamentals(ticker):
-    df_data_income_statement = get_income_statement(ticker)
-    df_data_balance_sheet = get_balance_sheet(ticker)
-    df_cash_flow = get_cash_flow(ticker)
+def get_saved_fundamentals(ticker):
+    df_data_income_statement = get_saved_income_statement(ticker)
+    df_data_balance_sheet = get_saved_balance_sheet(ticker)
+    df_cash_flow = get_saved_cash_flow(ticker)
 
     df_merge1 = pd.merge(df_data_income_statement, df_data_balance_sheet, on='date')
     df_merged = pd.merge(df_merge1, df_cash_flow, on='date')
@@ -87,7 +87,7 @@ def get_fundamentals(ticker):
 
     return df_sorted
 
-def calculate_fundamentals(df_fundmentals):
+def calculate_operational_metrics(df_fundmentals):
     df_calculated = pd.DataFrame()
     df_calculated['date'] = df_fundmentals['date']
 
@@ -167,7 +167,7 @@ def main():
 
     args = parser.parse_args()
     print("Stock ticker: {}".format(args.ticker))
-    df_calculated = get_fundamentals(args.ticker)
+    df_calculated = get_saved_fundamentals(args.ticker)
     print(df_calculated.columns)
 
 if __name__ == "__main__":

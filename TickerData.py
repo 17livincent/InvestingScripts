@@ -4,8 +4,8 @@
 
 from RequestAndSave import request_json
 from DBConnection import get_db_connection
-from OperationalMetrics import (get_fundamentals,
-                                calculate_fundamentals)
+from OperationalMetrics import (get_saved_fundamentals,
+                                calculate_operational_metrics)
 from ValuationMetrics import (get_shares_outstanding,
                               get_timeseries_weekly_adjusted)
 from sqlalchemy import text
@@ -15,11 +15,13 @@ from InitDB import (TABLE_COMPANIES_NAME,
                     TABLE_NAME_OPERATIONAL_METRICS,
                     TABLE_NAME_SHARES_OUTSTANDING,
                     TABLE_NAME_PRICES_WEEKLY,
+                    TABLE_NAME_VALUATION_METRICS,
                     TABLE_NAME_DATA_UPDATES,
                     INSERT_STATEMENT_FUNDAMENTALS,
                     INSERT_STATEMENT_OPERATIONAL_METRICS,
                     INSERT_STATEMENT_SHARES_OUTSTANDING,
-                    INSERT_STATEMENT_PRICES_WEEKLY)
+                    INSERT_STATEMENT_PRICES_WEEKLY,
+                    INSERT_STATEMENT_OPERATIONAL_METRICS)
 from pathlib import Path
 import json
 import pandas as pd
@@ -197,7 +199,7 @@ class TableFundamentals():
                 print('WARNING: Import of {} failed.  {}\r\n.  ' \
                 'Pulling from saved file if exists.'.format(function_name, function_json))
 
-        df_fundamentals = get_fundamentals(ticker_name)
+        df_fundamentals = get_saved_fundamentals(ticker_name)
         df_fundamentals['ticker'] = ticker_name
 
         check_latest_date = "SELECT MAX (date) FROM {} WHERE ticker=%(ticker_name)s;".format(TABLE_NAME_FUNDAMENTALS)
@@ -262,7 +264,7 @@ class TableOperationalMetrics():
         """
         df_fundamentals = TableFundamentals.get_from(ticker_name, db_connection)
 
-        operational_metrics = calculate_fundamentals(df_fundamentals)
+        operational_metrics = calculate_operational_metrics(df_fundamentals)
         operational_metrics['ticker'] = ticker_name
 
         # Push to the tables
@@ -362,7 +364,7 @@ class TablePricesWeekly():
 
     def append(ticker_name, df_prices_weekly, db_connection):
         """
-            Get all rows from 'prices_weekly' of the given ticker.
+            Append rows to 'prices_weekly' of the given ticker.
         """
         with db_connection.begin() as connection:
             for index, row in df_prices_weekly.iterrows():
@@ -404,7 +406,22 @@ class TablePricesWeekly():
             df_prices_weekly = df_prices_weekly[df_prices_weekly['date'] > latest_date]
         TablePricesWeekly.append(ticker_name, df_prices_weekly, db_connection)
 
+class TableValuationMetrics():
+    def get_from(ticker_name, db_connection):
+        """
+            Get all rows from 'valuation_metrics' of the given ticker.
+        """
+        query_str = "SELECT * FROM {} WHERE ticker = '{}';".format(TABLE_NAME_VALUATION_METRICS, ticker_name)
+        with db_connection.connect() as connection:
+            df_valuation_metrics = pd.read_sql_query(query_str, con=connection)
+            df_valuation_metrics['date'] = pd.to_datetime(df_valuation_metrics['date'])
+        return df_valuation_metrics
 
+    def append(ticker_name, df_valuation_metrics, db_connection):
+        pass
+
+    def update(ticker_name, db_connection):
+        pass
 
 def add_update_ticker(ticker_name, db_connection):
     """
