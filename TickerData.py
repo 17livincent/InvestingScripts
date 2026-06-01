@@ -271,8 +271,8 @@ class TableOperationalMetrics():
         operational_metrics['ticker'] = ticker_name
 
         # Push to the tables
-        DELETE_ALL = text("DELETE FROM {} WHERE ticker=:ticker".format(TABLE_NAME_VALUATION_METRICS,
-                                                                ticker_name))
+        DELETE_ALL = text("DELETE FROM {} WHERE ticker=:ticker".format(TABLE_NAME_OPERATIONAL_METRICS,
+                                                                       ticker_name))
         with db_connection.begin() as connection:
             connection.execute(DELETE_ALL,
                                {'ticker': ticker_name})

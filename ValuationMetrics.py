@@ -77,6 +77,7 @@ def calculate_valuation_metrics(df_fundamentals, df_weekly_prices, df_shares_out
     df_merged['ev_fcf'] = np.where(df_merged['ttm_fcf'] > 0,
                                    df_merged['enterprise_value'] / df_merged['ttm_fcf'],
                                    np.nan)
+    df_merged['ev_fcf'] = df_merged['ev_fcf'].clip(upper=200)
 
     return df_merged
 
