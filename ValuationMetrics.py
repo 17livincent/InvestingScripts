@@ -33,16 +33,10 @@ def get_timeseries_weekly_adjusted(ticker):
     df_weekly_stock_close = df_weekly_stock_close.sort_values('date')
     return df_weekly_stock_close
 
-def get_valuation(ticker, df_fundamentals):
-    df_fundamentals['date'] = pd.to_datetime(df_fundamentals['date']).astype('datetime64[ns]')
-    df_fundamentals = df_fundamentals.sort_values('date')
-
-    df_shares_outstanding = get_shares_outstanding(ticker)
-    df_weekly_stock_close = get_timeseries_weekly_adjusted(ticker)
-
+def calculate_valuation_metrics(df_fundamentals, df_weekly_prices, df_shares_outstanding):
     df_merged = pd.merge_asof(
+        df_weekly_prices[['date', 'adjusted_close', 'volume']],
         df_fundamentals,
-        df_weekly_stock_close[['date', 'adjusted_close', 'volume']],
         on='date',
         direction='backward')
     df_merged = pd.merge_asof(
@@ -86,12 +80,11 @@ def get_valuation(ticker, df_fundamentals):
 
     return df_merged
 
-def get_latest_valuation(df_valuation, ticker):
+def get_latest_valuation(df_valuation_metrics, ticker):
     """
-        Get a summary of the latest valuation metrics, given df_valuation
-        from get_valuation() of the given ticker.
+        Get a summary of the latest valuation metrics.
     """
-    latest = df_valuation.iloc[-1]
+    latest = df_valuation_metrics.iloc[-1]
     return {
         'ticker': ticker,
         'pe_ttm': latest['pe_ttm'],

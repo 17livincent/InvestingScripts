@@ -3,11 +3,11 @@
 """
 
 from RequestAndSave import request_json
-from DBConnection import get_db_connection
 from OperationalMetrics import (get_saved_fundamentals,
                                 calculate_operational_metrics)
 from ValuationMetrics import (get_shares_outstanding,
-                              get_timeseries_weekly_adjusted)
+                              get_timeseries_weekly_adjusted,
+                              calculate_valuation_metrics)
 from sqlalchemy import text
 from InitDB import (TABLE_COMPANIES_NAME,
                     TABLE_COMPANIES_DICT,
@@ -21,7 +21,7 @@ from InitDB import (TABLE_COMPANIES_NAME,
                     INSERT_STATEMENT_OPERATIONAL_METRICS,
                     INSERT_STATEMENT_SHARES_OUTSTANDING,
                     INSERT_STATEMENT_PRICES_WEEKLY,
-                    INSERT_STATEMENT_OPERATIONAL_METRICS)
+                    INSERT_STATEMENT_VALUATION_METRICS)
 from pathlib import Path
 import json
 import pandas as pd
@@ -42,7 +42,8 @@ RECENCY = {
     'fundamentals': 'quarter',
     'operational_metrics': 'quarter',
     'shares_outstanding': 'quarter',
-    'prices_weekly': 'week'
+    'prices_weekly': 'week',
+    'valuation_metrics': 'week'
 }
 
 class DataUpdates():
@@ -151,6 +152,7 @@ class TableFundamentals():
         with db_connection.connect() as connection:
             df_fundamentals = pd.read_sql_query(query_str, con=connection)
             df_fundamentals['date'] = pd.to_datetime(df_fundamentals['date'])
+            df_fundamentals = df_fundamentals.sort_values('date')
         return df_fundamentals
 
     def append(ticker_name, df_fundamentals, db_connection):
@@ -224,6 +226,7 @@ class TableOperationalMetrics():
         with db_connection.connect() as connection:
             df_operational_metrics = pd.read_sql_query(query_str, con=connection)
             df_operational_metrics['date'] = pd.to_datetime(df_operational_metrics['date'])
+            df_operational_metrics = df_operational_metrics.sort_values('date')
         return df_operational_metrics
 
     def append(ticker_name, df_operational_metrics, db_connection):
@@ -268,19 +271,12 @@ class TableOperationalMetrics():
         operational_metrics['ticker'] = ticker_name
 
         # Push to the tables
-        for table_to_update in [{'df': operational_metrics,
-                                'table_name': TABLE_NAME_OPERATIONAL_METRICS,
-                                'append_function': TableOperationalMetrics.append}]:
-            check_latest_date = "SELECT MAX (date) FROM {} WHERE ticker=%(ticker_name)s;".format(table_to_update['table_name'])
-            df_latest_date = pd.read_sql_query(check_latest_date,
-                                                params={"ticker_name": ticker_name},
-                                                con=db_connection)
-            if df_latest_date['max'].iloc[0] == None:
-                pass
-            else:
-                latest_date = pd.to_datetime(df_latest_date['max']).iloc[0]
-                table_to_update['df'] = table_to_update['df'][table_to_update['df']['date'] > latest_date]
-            table_to_update['append_function'](ticker_name, table_to_update['df'], db_connection)
+        DELETE_ALL = text("DELETE FROM {} WHERE ticker=:ticker".format(TABLE_NAME_VALUATION_METRICS,
+                                                                ticker_name))
+        with db_connection.begin() as connection:
+            connection.execute(DELETE_ALL,
+                               {'ticker': ticker_name})
+        TableOperationalMetrics.append(ticker_name, operational_metrics)
 
         return operational_metrics
 
@@ -360,6 +356,7 @@ class TablePricesWeekly():
         with db_connection.connect() as connection:
             df_prices_weekly = pd.read_sql_query(query_str, con=connection)
             df_prices_weekly['date'] = pd.to_datetime(df_prices_weekly['date'])
+            df_prices_weekly = df_prices_weekly.sort_values('date')
         return df_prices_weekly
 
     def append(ticker_name, df_prices_weekly, db_connection):
@@ -407,6 +404,16 @@ class TablePricesWeekly():
         TablePricesWeekly.append(ticker_name, df_prices_weekly, db_connection)
 
 class TableValuationMetrics():
+    def get_latest_date(ticker_name, db_connection):
+        latest_date = None
+        check_latest_date = "SELECT MAX (date) FROM {} WHERE ticker=%(ticker_name)s;".format(TABLE_NAME_VALUATION_METRICS)
+        df_latest_date = pd.read_sql_query(check_latest_date,
+                                            params={"ticker_name": ticker_name},
+                                            con=db_connection)
+        if df_latest_date['max'].iloc[0] != None:
+            latest_date = pd.to_datetime(df_latest_date['max'], utc=True).iloc[0]
+        return latest_date
+
     def get_from(ticker_name, db_connection):
         """
             Get all rows from 'valuation_metrics' of the given ticker.
@@ -415,18 +422,56 @@ class TableValuationMetrics():
         with db_connection.connect() as connection:
             df_valuation_metrics = pd.read_sql_query(query_str, con=connection)
             df_valuation_metrics['date'] = pd.to_datetime(df_valuation_metrics['date'])
+            df_valuation_metrics = df_valuation_metrics.sort_values('date')
         return df_valuation_metrics
 
     def append(ticker_name, df_valuation_metrics, db_connection):
-        pass
+        """
+            Append rows to 'valuation_metrics' of the given ticker.
+        """
+        with db_connection.begin() as connection:
+            for index, row in df_valuation_metrics.iterrows():
+                insert_statement = INSERT_STATEMENT_VALUATION_METRICS
+                connection.execute(insert_statement, {
+                    'ticker': ticker_name,
+                    'date': row['date'],
+                    'market_cap': row['market_cap'],
+                    'enterprise_value': row['enterprise_value'],
+                    'pe_ttm': row['pe_ttm'],
+                    'pfcf': row['pfcf'],
+                    'ev_ebit': row['ev_ebit'],
+                    'ev_fcf': row['ev_fcf'],
+                    'ev_nopat': row['ev_nopat']
+                })
+            print('Added {} for {}.'.format(TABLE_NAME_VALUATION_METRICS, ticker_name))
+        DataUpdates.add_data_update(ticker_name, TABLE_NAME_VALUATION_METRICS, db_connection)
 
     def update(ticker_name, db_connection):
-        pass
+        """
+            Read from 'fundamentals', 'operational_metrics', 'prices_weekly', and 'shares_outstanding'.
+            Update 'valuation_metrics' rows of the ticker.
+        """
+        df_fundamentals = TableFundamentals.get_from(ticker_name, db_connection)
+        df_operational_metrics = TableOperationalMetrics.get_from(ticker_name, db_connection)
+        df_prices_weekly = TablePricesWeekly.get_from(ticker_name, db_connection)
+        df_shares_outstanding = TableSharesOutstanding.get_from(ticker_name, db_connection)
+        df_operational_metrics = pd.merge(df_fundamentals, df_operational_metrics, on='date')
+        df_valuation_metrics = calculate_valuation_metrics(df_operational_metrics,
+                                                           df_prices_weekly,
+                                                           df_shares_outstanding)
+        DELETE_ALL = text("DELETE FROM {} WHERE ticker=:ticker".format(TABLE_NAME_VALUATION_METRICS,
+                                                                       ticker_name))
+        with db_connection.begin() as connection:
+            connection.execute(DELETE_ALL,
+                               {'ticker': ticker_name})
+        TableValuationMetrics.append(ticker_name, df_valuation_metrics, db_connection)
+
 
 def add_update_ticker(ticker_name, db_connection):
     """
         Add and/or update DB data of the given ticker.
     """
+    need_to_update_valuation_metrics = False
     last_update = DataUpdates.get_last_update(ticker_name, TABLE_COMPANIES_NAME, db_connection)
     needs_updated = DataUpdates.check_needs_update(TABLE_COMPANIES_NAME, last_update)
     if(needs_updated == True):
@@ -451,18 +496,22 @@ def add_update_ticker(ticker_name, db_connection):
         try:
             TableFundamentals.update(ticker_name, db_connection)
             TableOperationalMetrics.update(ticker_name, db_connection)
+            need_to_update_valuation_metrics = True
         except FileNotFoundError as e:
             print(e)
     else:
         print('Already have entry in {} or {} for {}.'.format(TABLE_NAME_FUNDAMENTALS,
                                                             TABLE_NAME_OPERATIONAL_METRICS,
                                                             ticker_name))
+    print(TableFundamentals.get_from(ticker_name, db_connection).to_string())
+    print(TableOperationalMetrics.get_from(ticker_name, db_connection).to_string())
 
     last_update = DataUpdates.get_last_update(ticker_name, TABLE_NAME_SHARES_OUTSTANDING, db_connection)
     needs_updated = DataUpdates.check_needs_update(TABLE_NAME_SHARES_OUTSTANDING, last_update)
     if(needs_updated == True):
         try:
             TableSharesOutstanding.update(ticker_name, db_connection)
+            need_to_update_valuation_metrics = True
         except FileNotFoundError as e:
             print(e)
     else:
@@ -474,8 +523,17 @@ def add_update_ticker(ticker_name, db_connection):
     if(needs_updated == True):
         try:
             TablePricesWeekly.update(ticker_name, db_connection)
+            need_to_update_valuation_metrics = True
         except FileNotFoundError as e:
             print(e)
     else:
         print('Already have entry in {} for {}.'.format(TABLE_NAME_PRICES_WEEKLY, ticker_name))
     print(TablePricesWeekly.get_from(ticker_name, db_connection))
+
+    last_update = TableValuationMetrics.get_latest_date(ticker_name, db_connection)
+    needs_updated = DataUpdates.check_needs_update(TABLE_NAME_VALUATION_METRICS, last_update)
+    if (need_to_update_valuation_metrics == True) or (needs_updated == True):
+        TableValuationMetrics.update(ticker_name, db_connection)
+    else:
+        print('Aleady have entries in {} for {}.'.format(TABLE_NAME_VALUATION_METRICS, ticker_name))
+    print(TableValuationMetrics.get_from(ticker_name, db_connection).to_string())

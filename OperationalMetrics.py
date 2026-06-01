@@ -149,7 +149,7 @@ def calculate_operational_metrics(df_fundmentals):
 
     return df_calculated
 
-def get_latest_metrics(df_calculated, ticker):
+def get_latest_operational_metrics(df_calculated, ticker):
     latest = df_calculated.iloc[-1]
     return {
         'ticker': ticker,

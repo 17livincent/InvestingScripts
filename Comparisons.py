@@ -1,9 +1,9 @@
 """
     Compare multiple companies.
 """
-from OperationalMetrics import get_latest_metrics
-from ValuationMetrics import get_valuation, get_latest_valuation
-from TickerData import TableFundamentals, TableOperationalMetrics, add_update_ticker
+from OperationalMetrics import get_latest_operational_metrics
+from ValuationMetrics import get_latest_valuation
+from TickerData import TableFundamentals, TableOperationalMetrics, TableValuationMetrics, add_update_ticker
 from DBConnection import get_db_connection
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -45,13 +45,13 @@ time_frames = {'ttm_roic': OPERATIONAL_TIME_FRAME_WEEKS,
                'ev_ebit': VALUATION_TIME_FRAME_WEEKS,
                'ev_fcf': VALUATION_TIME_FRAME_WEEKS}
 
-graphs = [{'x': 'date', 'y': 'ttm_roic', 'percentFormat': True},
-          {'x': 'date', 'y': 'revenue_growth_yoy', 'percentFormat': True},
-          {'x': 'date', 'y': 'ttm_operating_margin', 'percentFormat': True},
-          {'x': 'date', 'y': 'ttm_fcf_margin', 'percentFormat': True},
-          {'x': 'date', 'y': 'pe_ttm', 'percentFormat': False},
-          {'x': 'date', 'y': 'ev_ebit', 'percentFormat': False},
-          {'x': 'date', 'y': 'ev_fcf', 'percentFormat': False}]
+graphs = [{'x': 'date', 'y': 'ttm_roic', 'percentFormat': True, 'table': 'operational_metrics'},
+          {'x': 'date', 'y': 'revenue_growth_yoy', 'percentFormat': True, 'table': 'operational_metrics'},
+          {'x': 'date', 'y': 'ttm_operating_margin', 'percentFormat': True, 'table': 'operational_metrics'},
+          {'x': 'date', 'y': 'ttm_fcf_margin', 'percentFormat': True, 'table': 'operational_metrics'},
+          {'x': 'date', 'y': 'pe_ttm', 'percentFormat': False, 'table': 'valuation_metrics'},
+          {'x': 'date', 'y': 'ev_ebit', 'percentFormat': False, 'table': 'valuation_metrics'},
+          {'x': 'date', 'y': 'ev_fcf', 'percentFormat': False, 'table': 'valuation_metrics'}]
 
 df_calculated_all = {}
 comparison_rows = []
@@ -66,10 +66,10 @@ for ticker in tickers:
     try:
         df_fundamentals = TableFundamentals.get_from(ticker, db_connection)
         df_calculated = pd.merge(df_fundamentals, TableOperationalMetrics.get_from(ticker, db_connection), on='date')
-        df_calculated = get_valuation(ticker, df_calculated)
+        df_valuation_metrics = TableValuationMetrics.get_from(ticker, db_connection)
 
-        comparison_dict = get_latest_metrics(df_calculated, ticker)
-        comparison_dict.update(get_latest_valuation(df_calculated, ticker))
+        comparison_dict = get_latest_operational_metrics(df_calculated, ticker)
+        comparison_dict.update(get_latest_valuation(df_valuation_metrics, ticker))
         comparison_rows.append(comparison_dict)
     except FileNotFoundError as e:
         print(e)
@@ -78,7 +78,8 @@ for ticker in tickers:
         print(e)
         print(ticker)
 
-    df_calculated_all[ticker] = df_calculated
+    df_calculated_all[ticker] = {'operational_metrics': df_calculated,
+                                 'valuation_metrics': df_valuation_metrics}
 
 df_comparison = pd.DataFrame(comparison_rows)
 df_comparison = df_comparison.sort_values(by='ttm_roic', ascending=False)
@@ -91,10 +92,10 @@ fig, ax = plt.subplots(FIGURE_ROWS, FIGURE_COLS, figsize=(18, 12))
 
 for ticker in tickers:
     for graph_num, graph_x_y in enumerate(graphs):
-        ticker_calculated = df_calculated_all[ticker]
+        ticker_calculated = df_calculated_all[ticker][graph_x_y['table']]
         since_calculated = ticker_calculated[now - ticker_calculated['date'] < timedelta(weeks=time_frames[graph_x_y['y']])]
 
-        if not df_calculated_all[ticker].empty:
+        if not since_calculated.empty:
 
             row, col = divmod(graph_num, FIGURE_COLS)
             ax[row,col].set_title(graph_x_y['y'])
