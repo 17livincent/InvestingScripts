@@ -11,26 +11,18 @@ from matplotlib.ticker import PercentFormatter
 from datetime import datetime, timedelta
 
 tickers = [
+    'NVDA',
+    'MA',
+    'V',
+    'APH',
+    'MU',
+    'SNDK',
     'PLTR',
     'TEAM',
-    'APH',
-    # 'ETN',
-    # 'F',
-    'SNDK',
-    # 'MU',
-    # 'NVDA',
-    # 'AVGO',
-    # 'META',
-    'V',
-    'MA',
-    # 'TMUS',
-    # 'VZ',
-    # 'FDX',
     'CRWD',
     'GTLB',
-    'DELL',
-    # 'CVX'
-    ]
+    'DELL'
+]
 
 FIGURE_ROWS = 2
 FIGURE_COLS = 2
@@ -91,6 +83,9 @@ def create_graph_figures(title, graphs, df_data):
                         ax[row,col].scatter(since_calculated[graph_x_y['x']],
                                             since_calculated[graph_x_y['y']],
                                             label=ticker)
+                        ax[row,col].annotate(ticker,
+                                             (since_calculated[graph_x_y['x']].iloc[0],
+                                             since_calculated[graph_x_y['y']].iloc[0]))
                 except KeyError as e:
                     print("WARNING key {} missing from {} for {}.".format(graph_x_y['y'], since_calculated.columns, ticker))
                     print(e)
@@ -106,6 +101,11 @@ def create_graph_figures(title, graphs, df_data):
     fig.tight_layout()
     fig.savefig('data/{}.png'.format(title))
 
+def post_process_df(df_data):
+    try:
+        df_data['ev_fcf'] = df_data['ev_fcf'].clip(upper=200)
+    except KeyError as e:
+        pass
 
 df_calculated_all = {}
 comparison_rows = []
@@ -120,8 +120,13 @@ for ticker in tickers:
         df_operational_metrics = TableOperationalMetrics.get_from(ticker, db_connection)
         df_valuation_metrics = TableValuationMetrics.get_from(ticker, db_connection)
 
+        # Some post-processing
+        post_process_df(df_valuation_metrics)
+
         comparison_dict = get_latest_operational_metrics(df_operational_metrics, ticker)
         comparison_dict.update(get_latest_valuation(df_valuation_metrics, ticker))
+
+        comparison_dict['ROIC_EV_SCORE'] = comparison_dict['ttm_roic'] / comparison_dict['ev_ebit']
         comparison_rows.append(comparison_dict)
         ev_ebit_ttm_roic = pd.DataFrame([comparison_dict])
     except FileNotFoundError as e:
@@ -137,9 +142,15 @@ for ticker in tickers:
 
 df_comparison = pd.DataFrame(comparison_rows)
 df_comparison = df_comparison.sort_values(by='ttm_roic', ascending=False)
-print(df_comparison.to_string())
 
 # plt.style.use('dark_background')
 
 create_graph_figures(operational_figure['title'], operational_figure['graphs'], df_calculated_all)
 create_graph_figures(valuation_figure['title'], valuation_figure['graphs'], df_calculated_all)
+
+print('\r\n\r\nRank by greatest {}:'.format('ttm_roic'))
+print(df_comparison.to_string())
+
+df_comparison = df_comparison.sort_values(by='pe_ttm', ascending=True)
+print('\r\n\r\nRank by lowest {}:'.format('pe_ttm'))
+print(df_comparison.to_string())
