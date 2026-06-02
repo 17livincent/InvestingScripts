@@ -45,14 +45,17 @@ time_frames = {'ttm_roic': OPERATIONAL_TIME_FRAME_WEEKS,
                'ev_ebit': VALUATION_TIME_FRAME_WEEKS,
                'ev_fcf': VALUATION_TIME_FRAME_WEEKS}
 
-operational_graphs = [{'x': 'date', 'y': 'ttm_roic', 'percentFormat': True, 'table': 'operational_metrics'},
-                      {'x': 'date', 'y': 'revenue_growth_yoy', 'percentFormat': True, 'table': 'operational_metrics'},
-                      {'x': 'date', 'y': 'ttm_operating_margin', 'percentFormat': True, 'table': 'operational_metrics'},
-                      {'x': 'date', 'y': 'ttm_fcf_margin', 'percentFormat': True, 'table': 'operational_metrics'}]
+operational_graphs = [{'x': 'date', 'y': 'ttm_roic', 'type': 'line', 'percentFormat': True, 'table': 'operational_metrics'},
+                      {'x': 'date', 'y': 'revenue_growth_yoy', 'type': 'line', 'percentFormat': True, 'table': 'operational_metrics'},
+                      {'x': 'date', 'y': 'ttm_operating_margin', 'type': 'line', 'percentFormat': True, 'table': 'operational_metrics'},
+                      {'x': 'date', 'y': 'ttm_fcf_margin', 'type': 'line', 'percentFormat': True, 'table': 'operational_metrics'}
+                      ]
 
-valuation_graphs = [{'x': 'date', 'y': 'pe_ttm', 'percentFormat': False, 'table': 'valuation_metrics'},
-                    {'x': 'date', 'y': 'ev_ebit', 'percentFormat': False, 'table': 'valuation_metrics'},
-                    {'x': 'date', 'y': 'ev_fcf', 'percentFormat': False, 'table': 'valuation_metrics'}]
+valuation_graphs = [{'x': 'date', 'y': 'pe_ttm', 'type': 'line', 'percentFormat': False, 'table': 'valuation_metrics'},
+                    {'x': 'date', 'y': 'ev_ebit', 'type': 'line', 'percentFormat': False, 'table': 'valuation_metrics'},
+                    {'x': 'date', 'y': 'ev_fcf', 'type': 'line', 'percentFormat': False, 'table': 'valuation_metrics'},
+                    {'x': 'ev_ebit', 'y': 'ttm_roic', 'type': 'scatter', 'percentFormat': False, 'table': 'ev_ebit_ttm_roic'}
+                    ]
 
 operational_figure = {'graphs': operational_graphs, 'title': 'Operational Comparisons'}
 valuation_figure = {'graphs': valuation_graphs, 'title': 'Valuation Comparisons'}
@@ -62,26 +65,42 @@ def create_graph_figures(title, graphs, df_data):
 
     fig, ax = plt.subplots(FIGURE_ROWS, FIGURE_COLS, figsize=(18, 12))
 
-    for ticker in tickers:
-        for graph_num, graph_x_y in enumerate(graphs):
+    for graph_num, graph_x_y in enumerate(graphs):
+        row, col = divmod(graph_num, FIGURE_COLS)
+        ax[row,col].set_title('{} to {}'.format(graph_x_y['y'], graph_x_y['x']))
+
+        for ticker in tickers:
+
             ticker_calculated = df_data[ticker][graph_x_y['table']]
-            since_calculated = ticker_calculated[now - ticker_calculated['date'] < timedelta(weeks=time_frames[graph_x_y['y']])]
+
+
+            since_calculated = None
+            if graph_x_y['x'] == 'date':
+                since_calculated = ticker_calculated[now - ticker_calculated['date'] < timedelta(weeks=time_frames[graph_x_y['y']])]
+            else:
+                since_calculated = ticker_calculated
 
             if not since_calculated.empty:
-
-                row, col = divmod(graph_num, FIGURE_COLS)
-                ax[row,col].set_title(graph_x_y['y'])
                 try:
-                    ax[row,col].plot(since_calculated[graph_x_y['x']],
-                                    since_calculated[graph_x_y['y']],
-                                    label=ticker,
-                                    linewidth=(3 if ticker == top_ttm_roic else 1.5))
-                    ax[row,col].legend(loc='center left', fontsize=8, bbox_to_anchor=(1, 0.5))
+                    if graph_x_y['type'] == 'line':
+                        ax[row,col].plot(since_calculated[graph_x_y['x']],
+                                        since_calculated[graph_x_y['y']],
+                                        label=ticker,
+                                        linewidth=(3 if ticker == top_ttm_roic else 1.5))
+                    elif graph_x_y['type'] == 'scatter':
+                        ax[row,col].scatter(since_calculated[graph_x_y['x']],
+                                            since_calculated[graph_x_y['y']],
+                                            label=ticker)
                 except KeyError as e:
-                    print("WARNING key {} missing for {}.".format(graph_x_y['y'], ticker))
-                ax[row,col].grid(True, alpha=0.3)
-                if graph_x_y['percentFormat'] == True:
-                    ax[row,col].yaxis.set_major_formatter(PercentFormatter(1.0))
+                    print("WARNING key {} missing from {} for {}.".format(graph_x_y['y'], since_calculated.columns, ticker))
+                    print(e)
+
+        ax[row,col].set_xlabel(graph_x_y['x'])
+        ax[row,col].set_ylabel(graph_x_y['y'])
+        ax[row,col].legend(loc='center left', fontsize=8, bbox_to_anchor=(1, 0.5))
+        ax[row,col].grid(True, alpha=0.3)
+        if graph_x_y['percentFormat'] == True:
+            ax[row,col].yaxis.set_major_formatter(PercentFormatter(1.0))
 
     fig.suptitle(title, fontsize=24)
     fig.tight_layout()
@@ -104,6 +123,7 @@ for ticker in tickers:
         comparison_dict = get_latest_operational_metrics(df_operational_metrics, ticker)
         comparison_dict.update(get_latest_valuation(df_valuation_metrics, ticker))
         comparison_rows.append(comparison_dict)
+        ev_ebit_ttm_roic = pd.DataFrame([comparison_dict])
     except FileNotFoundError as e:
         print(e)
         print("WARNING: no data for {}.".format(ticker))
@@ -112,7 +132,8 @@ for ticker in tickers:
         print(ticker)
 
     df_calculated_all[ticker] = {'operational_metrics': df_operational_metrics,
-                                 'valuation_metrics': df_valuation_metrics}
+                                 'valuation_metrics': df_valuation_metrics,
+                                 'ev_ebit_ttm_roic': ev_ebit_ttm_roic}
 
 df_comparison = pd.DataFrame(comparison_rows)
 df_comparison = df_comparison.sort_values(by='ttm_roic', ascending=False)
