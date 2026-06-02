@@ -276,7 +276,7 @@ class TableOperationalMetrics():
         with db_connection.begin() as connection:
             connection.execute(DELETE_ALL,
                                {'ticker': ticker_name})
-        TableOperationalMetrics.append(ticker_name, operational_metrics)
+        TableOperationalMetrics.append(ticker_name, operational_metrics, db_connection)
 
         return operational_metrics
 
@@ -503,8 +503,8 @@ def add_update_ticker(ticker_name, db_connection):
         print('Already have entry in {} or {} for {}.'.format(TABLE_NAME_FUNDAMENTALS,
                                                             TABLE_NAME_OPERATIONAL_METRICS,
                                                             ticker_name))
-    print(TableFundamentals.get_from(ticker_name, db_connection).to_string())
-    print(TableOperationalMetrics.get_from(ticker_name, db_connection).to_string())
+    # print(TableFundamentals.get_from(ticker_name, db_connection).to_string())
+    # print(TableOperationalMetrics.get_from(ticker_name, db_connection).to_string())
 
     last_update = DataUpdates.get_last_update(ticker_name, TABLE_NAME_SHARES_OUTSTANDING, db_connection)
     needs_updated = DataUpdates.check_needs_update(TABLE_NAME_SHARES_OUTSTANDING, last_update)
@@ -516,7 +516,7 @@ def add_update_ticker(ticker_name, db_connection):
             print(e)
     else:
         print('Already have entry in {} for {}.'.format(TABLE_NAME_SHARES_OUTSTANDING, ticker_name))
-    print(TableSharesOutstanding.get_from(ticker_name, db_connection))
+    # print(TableSharesOutstanding.get_from(ticker_name, db_connection))
 
     last_update = TablePricesWeekly.get_latest_date(ticker_name, db_connection)
     needs_updated = DataUpdates.check_needs_update(TABLE_NAME_PRICES_WEEKLY, last_update)
@@ -528,7 +528,7 @@ def add_update_ticker(ticker_name, db_connection):
             print(e)
     else:
         print('Already have entry in {} for {}.'.format(TABLE_NAME_PRICES_WEEKLY, ticker_name))
-    print(TablePricesWeekly.get_from(ticker_name, db_connection))
+    # print(TablePricesWeekly.get_from(ticker_name, db_connection))
 
     last_update = TableValuationMetrics.get_latest_date(ticker_name, db_connection)
     needs_updated = DataUpdates.check_needs_update(TABLE_NAME_VALUATION_METRICS, last_update)
@@ -536,4 +536,4 @@ def add_update_ticker(ticker_name, db_connection):
         TableValuationMetrics.update(ticker_name, db_connection)
     else:
         print('Aleady have entries in {} for {}.'.format(TABLE_NAME_VALUATION_METRICS, ticker_name))
-    print(TableValuationMetrics.get_from(ticker_name, db_connection).to_string())
+    # print(TableValuationMetrics.get_from(ticker_name, db_connection).to_string())

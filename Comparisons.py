@@ -21,7 +21,7 @@ tickers = [
     # 'NVDA',
     # 'AVGO',
     # 'META',
-    # 'V',
+    'V',
     'MA',
     # 'TMUS',
     # 'VZ',
