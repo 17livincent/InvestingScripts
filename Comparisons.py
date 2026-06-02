@@ -32,7 +32,7 @@ tickers = [
     # 'CVX'
     ]
 
-FIGURE_ROWS = 4
+FIGURE_ROWS = 2
 FIGURE_COLS = 2
 OPERATIONAL_TIME_FRAME_WEEKS = 52*6
 VALUATION_TIME_FRAME_WEEKS = 52*2
@@ -45,13 +45,48 @@ time_frames = {'ttm_roic': OPERATIONAL_TIME_FRAME_WEEKS,
                'ev_ebit': VALUATION_TIME_FRAME_WEEKS,
                'ev_fcf': VALUATION_TIME_FRAME_WEEKS}
 
-graphs = [{'x': 'date', 'y': 'ttm_roic', 'percentFormat': True, 'table': 'operational_metrics'},
-          {'x': 'date', 'y': 'revenue_growth_yoy', 'percentFormat': True, 'table': 'operational_metrics'},
-          {'x': 'date', 'y': 'ttm_operating_margin', 'percentFormat': True, 'table': 'operational_metrics'},
-          {'x': 'date', 'y': 'ttm_fcf_margin', 'percentFormat': True, 'table': 'operational_metrics'},
-          {'x': 'date', 'y': 'pe_ttm', 'percentFormat': False, 'table': 'valuation_metrics'},
-          {'x': 'date', 'y': 'ev_ebit', 'percentFormat': False, 'table': 'valuation_metrics'},
-          {'x': 'date', 'y': 'ev_fcf', 'percentFormat': False, 'table': 'valuation_metrics'}]
+operational_graphs = [{'x': 'date', 'y': 'ttm_roic', 'percentFormat': True, 'table': 'operational_metrics'},
+                      {'x': 'date', 'y': 'revenue_growth_yoy', 'percentFormat': True, 'table': 'operational_metrics'},
+                      {'x': 'date', 'y': 'ttm_operating_margin', 'percentFormat': True, 'table': 'operational_metrics'},
+                      {'x': 'date', 'y': 'ttm_fcf_margin', 'percentFormat': True, 'table': 'operational_metrics'}]
+
+valuation_graphs = [{'x': 'date', 'y': 'pe_ttm', 'percentFormat': False, 'table': 'valuation_metrics'},
+                    {'x': 'date', 'y': 'ev_ebit', 'percentFormat': False, 'table': 'valuation_metrics'},
+                    {'x': 'date', 'y': 'ev_fcf', 'percentFormat': False, 'table': 'valuation_metrics'}]
+
+operational_figure = {'graphs': operational_graphs, 'title': 'Operational Comparisons'}
+valuation_figure = {'graphs': valuation_graphs, 'title': 'Valuation Comparisons'}
+
+def create_graph_figures(title, graphs, df_data):
+    top_ttm_roic = df_comparison.iloc[0]['ticker']
+
+    fig, ax = plt.subplots(FIGURE_ROWS, FIGURE_COLS, figsize=(18, 12))
+
+    for ticker in tickers:
+        for graph_num, graph_x_y in enumerate(graphs):
+            ticker_calculated = df_data[ticker][graph_x_y['table']]
+            since_calculated = ticker_calculated[now - ticker_calculated['date'] < timedelta(weeks=time_frames[graph_x_y['y']])]
+
+            if not since_calculated.empty:
+
+                row, col = divmod(graph_num, FIGURE_COLS)
+                ax[row,col].set_title(graph_x_y['y'])
+                try:
+                    ax[row,col].plot(since_calculated[graph_x_y['x']],
+                                    since_calculated[graph_x_y['y']],
+                                    label=ticker,
+                                    linewidth=(3 if ticker == top_ttm_roic else 1.5))
+                    ax[row,col].legend(loc='center left', fontsize=8, bbox_to_anchor=(1, 0.5))
+                except KeyError as e:
+                    print("WARNING key {} missing for {}.".format(graph_x_y['y'], ticker))
+                ax[row,col].grid(True, alpha=0.3)
+                if graph_x_y['percentFormat'] == True:
+                    ax[row,col].yaxis.set_major_formatter(PercentFormatter(1.0))
+
+    fig.suptitle(title, fontsize=24)
+    fig.tight_layout()
+    fig.savefig('data/{}.png'.format(title))
+
 
 df_calculated_all = {}
 comparison_rows = []
@@ -62,13 +97,11 @@ db_connection = get_db_connection()
 for ticker in tickers:
     add_update_ticker(ticker, db_connection)
 
-    df_calculated = pd.DataFrame()
     try:
-        df_fundamentals = TableFundamentals.get_from(ticker, db_connection)
-        df_calculated = pd.merge(df_fundamentals, TableOperationalMetrics.get_from(ticker, db_connection), on='date')
+        df_operational_metrics = TableOperationalMetrics.get_from(ticker, db_connection)
         df_valuation_metrics = TableValuationMetrics.get_from(ticker, db_connection)
 
-        comparison_dict = get_latest_operational_metrics(df_calculated, ticker)
+        comparison_dict = get_latest_operational_metrics(df_operational_metrics, ticker)
         comparison_dict.update(get_latest_valuation(df_valuation_metrics, ticker))
         comparison_rows.append(comparison_dict)
     except FileNotFoundError as e:
@@ -78,39 +111,14 @@ for ticker in tickers:
         print(e)
         print(ticker)
 
-    df_calculated_all[ticker] = {'operational_metrics': df_calculated,
+    df_calculated_all[ticker] = {'operational_metrics': df_operational_metrics,
                                  'valuation_metrics': df_valuation_metrics}
 
 df_comparison = pd.DataFrame(comparison_rows)
 df_comparison = df_comparison.sort_values(by='ttm_roic', ascending=False)
 print(df_comparison.to_string())
 
-top_ttm_roic = df_comparison.iloc[0]['ticker']
+# plt.style.use('dark_background')
 
-plt.style.use('dark_background')
-fig, ax = plt.subplots(FIGURE_ROWS, FIGURE_COLS, figsize=(18, 12))
-
-for ticker in tickers:
-    for graph_num, graph_x_y in enumerate(graphs):
-        ticker_calculated = df_calculated_all[ticker][graph_x_y['table']]
-        since_calculated = ticker_calculated[now - ticker_calculated['date'] < timedelta(weeks=time_frames[graph_x_y['y']])]
-
-        if not since_calculated.empty:
-
-            row, col = divmod(graph_num, FIGURE_COLS)
-            ax[row,col].set_title(graph_x_y['y'])
-            try:
-                ax[row,col].plot(since_calculated[graph_x_y['x']],
-                                since_calculated[graph_x_y['y']],
-                                label=ticker,
-                                linewidth=(3 if ticker == top_ttm_roic else 1.5))
-                ax[row,col].legend(loc='center left', fontsize=8, bbox_to_anchor=(1, 0.5))
-            except KeyError as e:
-                print("WARNING key {} missing for {}.".format(graph_x_y['y'], ticker))
-            ax[row,col].grid(True, alpha=0.3)
-            if graph_x_y['percentFormat'] == True:
-                ax[row,col].yaxis.set_major_formatter(PercentFormatter(1.0))
-
-fig.suptitle('Comparisons', fontsize=24)
-fig.tight_layout()
-fig.savefig('data/Comparisons.png')
+create_graph_figures(operational_figure['title'], operational_figure['graphs'], df_calculated_all)
+create_graph_figures(valuation_figure['title'], valuation_figure['graphs'], df_calculated_all)
