@@ -3,26 +3,13 @@
 """
 from OperationalMetrics import get_latest_operational_metrics
 from ValuationMetrics import get_latest_valuation
-from TickerData import TableFundamentals, TableOperationalMetrics, TableValuationMetrics, add_update_ticker
+from TickerData import TableOperationalMetrics, TableValuationMetrics, add_update_ticker
 from DBConnection import get_db_connection
 import pandas as pd
 import matplotlib.pyplot as plt
 from matplotlib.ticker import PercentFormatter
 from datetime import datetime, timedelta
-
-tickers = [
-    'NVDA',
-    'MA',
-    'V',
-    'APH',
-    'MU',
-    'SNDK',
-    'PLTR',
-    'TEAM',
-    'CRWD',
-    'GTLB',
-    'DELL'
-]
+import json
 
 FIGURE_ROWS = 2
 FIGURE_COLS = 2
@@ -52,7 +39,7 @@ valuation_graphs = [{'x': 'date', 'y': 'pe_ttm', 'type': 'line', 'percentFormat'
 operational_figure = {'graphs': operational_graphs, 'title': 'Operational Comparisons'}
 valuation_figure = {'graphs': valuation_graphs, 'title': 'Valuation Comparisons'}
 
-def create_graph_figures(title, graphs, df_data):
+def create_graph_figures(title, graphs, df_comparison, df_data):
     top_ttm_roic = df_comparison.iloc[0]['ticker']
 
     fig, ax = plt.subplots(FIGURE_ROWS, FIGURE_COLS, figsize=(18, 12))
@@ -61,12 +48,10 @@ def create_graph_figures(title, graphs, df_data):
         row, col = divmod(graph_num, FIGURE_COLS)
         ax[row,col].set_title('{} to {}'.format(graph_x_y['y'], graph_x_y['x']))
 
-        for ticker in tickers:
-
-            ticker_calculated = df_data[ticker][graph_x_y['table']]
-
-
+        for ticker_name in df_data:
+            ticker_calculated = df_data[ticker_name][graph_x_y['table']]
             since_calculated = None
+
             if graph_x_y['x'] == 'date':
                 since_calculated = ticker_calculated[now - ticker_calculated['date'] < timedelta(weeks=time_frames[graph_x_y['y']])]
             else:
@@ -77,13 +62,13 @@ def create_graph_figures(title, graphs, df_data):
                     if graph_x_y['type'] == 'line':
                         ax[row,col].plot(since_calculated[graph_x_y['x']],
                                         since_calculated[graph_x_y['y']],
-                                        label=ticker,
-                                        linewidth=(3 if ticker == top_ttm_roic else 1.5))
+                                        label=ticker_name,
+                                        linewidth=(3 if ticker_name == top_ttm_roic else 1.5))
                     elif graph_x_y['type'] == 'scatter':
                         ax[row,col].scatter(since_calculated[graph_x_y['x']],
                                             since_calculated[graph_x_y['y']],
-                                            label=ticker)
-                        ax[row,col].annotate(ticker,
+                                            label=ticker_name)
+                        ax[row,col].annotate(ticker_name,
                                              (since_calculated[graph_x_y['x']].iloc[0],
                                              since_calculated[graph_x_y['y']].iloc[0]))
                 except KeyError as e:
@@ -107,50 +92,75 @@ def post_process_df(df_data):
     except KeyError as e:
         pass
 
-df_calculated_all = {}
-comparison_rows = []
+def get_unique_tickers_in_watchlist_array(watchlists_json):
+    all_tickers = []
+    for watchlist_tickers in [watchlists_json[watchlist_name] for watchlist_name in watchlists_json]:
+        all_tickers.extend(watchlist_tickers)
+    all_tickers.sort()
+    all_tickers = list(set(all_tickers))
+
+    return all_tickers
 
 now = pd.to_datetime(datetime.now())
 db_connection = get_db_connection()
 
-for ticker in tickers:
-    add_update_ticker(ticker, db_connection)
+with open('watchlists.json', 'r') as watchlists_file:
+    watchlists_json = json.load(watchlists_file)
+    print(watchlists_json)
 
-    try:
-        df_operational_metrics = TableOperationalMetrics.get_from(ticker, db_connection)
-        df_valuation_metrics = TableValuationMetrics.get_from(ticker, db_connection)
+    all_tickers = get_unique_tickers_in_watchlist_array(watchlists_json)
+    print(all_tickers)
 
-        # Some post-processing
-        post_process_df(df_valuation_metrics)
+    df_calculated_all = {}
+    comparison_rows = []
 
-        comparison_dict = get_latest_operational_metrics(df_operational_metrics, ticker)
-        comparison_dict.update(get_latest_valuation(df_valuation_metrics, ticker))
+    for ticker in all_tickers:
+        add_update_ticker(ticker, db_connection)
 
-        comparison_dict['ROIC_EV_SCORE'] = comparison_dict['ttm_roic'] / comparison_dict['ev_ebit']
-        comparison_rows.append(comparison_dict)
-        ev_ebit_ttm_roic = pd.DataFrame([comparison_dict])
-    except FileNotFoundError as e:
-        print(e)
-        print("WARNING: no data for {}.".format(ticker))
-    except KeyError as e:
-        print(e)
-        print(ticker)
+        try:
+            df_operational_metrics = TableOperationalMetrics.get_from(ticker, db_connection)
+            df_valuation_metrics = TableValuationMetrics.get_from(ticker, db_connection)
 
-    df_calculated_all[ticker] = {'operational_metrics': df_operational_metrics,
-                                 'valuation_metrics': df_valuation_metrics,
-                                 'ev_ebit_ttm_roic': ev_ebit_ttm_roic}
+            # Some post-processing
+            post_process_df(df_valuation_metrics)
 
-df_comparison = pd.DataFrame(comparison_rows)
-df_comparison = df_comparison.sort_values(by='ttm_roic', ascending=False)
+            comparison_dict = get_latest_operational_metrics(df_operational_metrics, ticker)
+            comparison_dict.update(get_latest_valuation(df_valuation_metrics, ticker))
 
-# plt.style.use('dark_background')
+            comparison_dict['ROIC_EV_SCORE'] = comparison_dict['ttm_roic'] / comparison_dict['ev_ebit']
+            comparison_rows.append(comparison_dict)
+            ev_ebit_ttm_roic = pd.DataFrame([comparison_dict])
+        except FileNotFoundError as e:
+            print(e)
+            print("WARNING: no data for {}.".format(ticker))
+        except KeyError as e:
+            print(e)
+            print(ticker)
 
-create_graph_figures(operational_figure['title'], operational_figure['graphs'], df_calculated_all)
-create_graph_figures(valuation_figure['title'], valuation_figure['graphs'], df_calculated_all)
+        df_calculated_all[ticker] = {'operational_metrics': df_operational_metrics,
+                                    'valuation_metrics': df_valuation_metrics,
+                                    'ev_ebit_ttm_roic': ev_ebit_ttm_roic}
 
-print('\r\n\r\nRank by greatest {}:'.format('ttm_roic'))
-print(df_comparison.to_string())
+    df_comparison = pd.DataFrame(comparison_rows)
+    df_comparison = df_comparison.sort_values(by='ttm_roic', ascending=False)
 
-df_comparison = df_comparison.sort_values(by='pe_ttm', ascending=True)
-print('\r\n\r\nRank by lowest {}:'.format('pe_ttm'))
-print(df_comparison.to_string())
+    for watchlist_name in watchlists_json:
+        print(watchlists_json[watchlist_name])
+        watchlist_calculated = {key: df_calculated_all[key] for key in watchlists_json[watchlist_name] if key in df_calculated_all}
+        # plt.style.use('dark_background')
+
+        create_graph_figures('{} {}'.format(watchlist_name, operational_figure['title']),
+                             operational_figure['graphs'],
+                             df_comparison,
+                             watchlist_calculated)
+        create_graph_figures('{} {}'.format(watchlist_name, valuation_figure['title']),
+                             valuation_figure['graphs'],
+                             df_comparison,
+                             watchlist_calculated)
+
+        print('\r\n\r\n{}: Rank by greatest {}:'.format(watchlist_name, 'ttm_roic'))
+        print(df_comparison.to_string())
+
+        df_comparison = df_comparison.sort_values(by='pe_ttm', ascending=True)
+        print('\r\n\r\n{}: Rank by lowest {}:'.format(watchlist_name, 'pe_ttm'))
+        print(df_comparison.to_string())
