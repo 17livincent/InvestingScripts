@@ -40,6 +40,8 @@ operational_figure = {'graphs': operational_graphs, 'title': 'Operational Compar
 valuation_figure = {'graphs': valuation_graphs, 'title': 'Valuation Comparisons'}
 
 def create_graph_figures(title, graphs, df_comparison, df_data):
+    now = pd.to_datetime(datetime.now())
+
     top_ttm_roic = df_comparison.iloc[0]['ticker']
 
     fig, ax = plt.subplots(FIGURE_ROWS, FIGURE_COLS, figsize=(18, 12))
@@ -72,7 +74,7 @@ def create_graph_figures(title, graphs, df_comparison, df_data):
                                              (since_calculated[graph_x_y['x']].iloc[0],
                                              since_calculated[graph_x_y['y']].iloc[0]))
                 except KeyError as e:
-                    print("WARNING key {} missing from {} for {}.".format(graph_x_y['y'], since_calculated.columns, ticker))
+                    print("WARNING key {} missing from {} for {}.".format(graph_x_y['y'], since_calculated.columns, ticker_name))
                     print(e)
 
         ax[row,col].set_xlabel(graph_x_y['x'])
@@ -101,66 +103,78 @@ def get_unique_tickers_in_watchlist_array(watchlists_json):
 
     return all_tickers
 
-now = pd.to_datetime(datetime.now())
-db_connection = get_db_connection()
+def main():
+    db_connection = get_db_connection()
 
-with open('watchlists.json', 'r') as watchlists_file:
-    watchlists_json = json.load(watchlists_file)
-    print(watchlists_json)
+    with open('watchlists.json', 'r') as watchlists_file:
+        watchlists_json = json.load(watchlists_file)
+        print(watchlists_json)
 
-    all_tickers = get_unique_tickers_in_watchlist_array(watchlists_json)
-    print(all_tickers)
+        all_tickers = get_unique_tickers_in_watchlist_array(watchlists_json)
+        print('Unique tickers: {}'.format(all_tickers))
 
-    df_calculated_all = {}
-    comparison_rows = []
+        df_calculated_all = {}
+        comparison_rows = []
 
-    for ticker in all_tickers:
-        add_update_ticker(ticker, db_connection)
+        for ticker in all_tickers:
+            try:
+                add_update_ticker(ticker, db_connection)
 
-        try:
-            df_operational_metrics = TableOperationalMetrics.get_from(ticker, db_connection)
-            df_valuation_metrics = TableValuationMetrics.get_from(ticker, db_connection)
+                df_operational_metrics = TableOperationalMetrics.get_from(ticker, db_connection)
+                df_valuation_metrics = TableValuationMetrics.get_from(ticker, db_connection)
 
-            # Some post-processing
-            post_process_df(df_valuation_metrics)
+                # Some post-processing
+                post_process_df(df_valuation_metrics)
 
-            comparison_dict = get_latest_operational_metrics(df_operational_metrics, ticker)
-            comparison_dict.update(get_latest_valuation(df_valuation_metrics, ticker))
+                comparison_dict = get_latest_operational_metrics(df_operational_metrics, ticker)
+                comparison_dict.update(get_latest_valuation(df_valuation_metrics, ticker))
 
-            comparison_dict['ROIC_EV_SCORE'] = comparison_dict['ttm_roic'] / comparison_dict['ev_ebit']
-            comparison_rows.append(comparison_dict)
-            ev_ebit_ttm_roic = pd.DataFrame([comparison_dict])
-        except FileNotFoundError as e:
-            print(e)
-            print("WARNING: no data for {}.".format(ticker))
-        except KeyError as e:
-            print(e)
-            print(ticker)
+                comparison_dict['ROIC_EV_SCORE'] = comparison_dict['ttm_roic'] / comparison_dict['ev_ebit']
+                comparison_rows.append(comparison_dict)
+                ev_ebit_ttm_roic = pd.DataFrame([comparison_dict])
 
-        df_calculated_all[ticker] = {'operational_metrics': df_operational_metrics,
-                                    'valuation_metrics': df_valuation_metrics,
-                                    'ev_ebit_ttm_roic': ev_ebit_ttm_roic}
+                df_calculated_all[ticker] = {'operational_metrics': df_operational_metrics,
+                                'valuation_metrics': df_valuation_metrics,
+                                'ev_ebit_ttm_roic': ev_ebit_ttm_roic}
 
-    df_comparison = pd.DataFrame(comparison_rows)
-    df_comparison = df_comparison.sort_values(by='ttm_roic', ascending=False)
+            except FileNotFoundError as e:
+                print(e)
+                print("WARNING: no data for {}.".format(ticker))
+            except KeyError as e:
+                print(e)
+                print(ticker)
 
-    for watchlist_name in watchlists_json:
-        print(watchlists_json[watchlist_name])
-        watchlist_calculated = {key: df_calculated_all[key] for key in watchlists_json[watchlist_name] if key in df_calculated_all}
-        # plt.style.use('dark_background')
+        if comparison_rows:
+            df_comparison = pd.DataFrame(comparison_rows)
+            df_comparison = df_comparison.sort_values(by='ttm_roic', ascending=False)
+            print(watchlists_json)
 
-        create_graph_figures('{} {}'.format(watchlist_name, operational_figure['title']),
-                             operational_figure['graphs'],
-                             df_comparison,
-                             watchlist_calculated)
-        create_graph_figures('{} {}'.format(watchlist_name, valuation_figure['title']),
-                             valuation_figure['graphs'],
-                             df_comparison,
-                             watchlist_calculated)
+            for watchlist_name in watchlists_json:
+                watchlist_tickers = watchlists_json[watchlist_name]
+                print(watchlist_tickers)
 
-        print('\r\n\r\n{}: Rank by greatest {}:'.format(watchlist_name, 'ttm_roic'))
-        print(df_comparison.to_string())
+                if watchlist_tickers:
+                    df_watchlist_comparison = df_comparison.loc[df_comparison['ticker'].isin(watchlist_tickers)]
 
-        df_comparison = df_comparison.sort_values(by='pe_ttm', ascending=True)
-        print('\r\n\r\n{}: Rank by lowest {}:'.format(watchlist_name, 'pe_ttm'))
-        print(df_comparison.to_string())
+                    if not df_watchlist_comparison.empty:
+                        watchlist_calculated = {key: df_calculated_all[key] for key in watchlists_json[watchlist_name] if key in df_calculated_all}
+                        # plt.style.use('dark_background')
+
+                        create_graph_figures('{} {}'.format(watchlist_name, operational_figure['title']),
+                                            operational_figure['graphs'],
+                                            df_watchlist_comparison,
+                                            watchlist_calculated)
+                        create_graph_figures('{} {}'.format(watchlist_name, valuation_figure['title']),
+                                            valuation_figure['graphs'],
+                                            df_watchlist_comparison,
+                                            watchlist_calculated)
+
+                        print('\r\n\r\n{}: Rank by greatest {}:'.format(watchlist_name, 'ttm_roic'))
+                        print(df_watchlist_comparison.to_string())
+
+                        df_watchlist_comparison = df_watchlist_comparison.sort_values(by='pe_ttm', ascending=True)
+                        print('\r\n\r\n{}: Rank by lowest {}:'.format(watchlist_name, 'pe_ttm'))
+                        print(df_watchlist_comparison.to_string())
+
+if __name__ == "__main__":
+    main()
