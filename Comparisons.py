@@ -140,6 +140,8 @@ def main():
             except FileNotFoundError as e:
                 print(e)
                 print("WARNING: no data for {}.".format(ticker))
+            except IndexError as e:
+                print(e)
             except KeyError as e:
                 print(e)
                 print(ticker)
