@@ -14,8 +14,9 @@ Tables:
     - prices_weekly         --> from raw AlphaVantage JSON
     - shares_outstanding    --> from raw AlphaVantage JSON
     - valuation_metrics     --> calculated from all raw tables
-    - companies
-    - data_updates
+    - companies             --> data of recorded companies/tickers
+    - report_dates          --> next earnings report date
+    - data_updates          --> records of when the last ticker*table update was made
 '''
 
 TABLE_COMPANIES_NAME = 'companies'
@@ -25,6 +26,15 @@ TABLE_NAME_SHARES_OUTSTANDING = 'shares_outstanding'
 TABLE_NAME_PRICES_WEEKLY = 'prices_weekly'
 TABLE_NAME_DATA_UPDATES = 'data_updates'
 TABLE_NAME_VALUATION_METRICS = 'valuation_metrics'
+TABLE_NAME_REPORT_DATES = 'report_dates'
+
+TABLE_NAMES = [TABLE_COMPANIES_NAME,
+               TABLE_NAME_FUNDAMENTALS,
+               TABLE_NAME_OPERATIONAL_METRICS,
+               TABLE_NAME_SHARES_OUTSTANDING,
+               TABLE_NAME_PRICES_WEEKLY,
+               TABLE_NAME_VALUATION_METRICS
+               ]
 
 TABLE_COMPANIES_DICT = {
     'ticker': '',
@@ -34,12 +44,6 @@ TABLE_COMPANIES_DICT = {
     'exchange': '',
     'country': '',
     'market_cap_latest': ''
-}
-
-TABLE_DATA_UPDATES_DICT = {
-    'ticker': '',
-    'dataset': '',
-    'last_updated': None
 }
 
 TABLES = [
@@ -157,6 +161,12 @@ CREATE TABLE data_updates (
 
     PRIMARY KEY (ticker, dataset)
 );
+""",
+"""
+CREATE TABLE report_dates (
+    ticker TEXT NOT NULL,
+    report_date DATE NULL
+)
 """
 ]
 

@@ -9,7 +9,8 @@ from ValuationMetrics import (get_shares_outstanding,
                               get_timeseries_weekly_adjusted,
                               calculate_valuation_metrics)
 from sqlalchemy import text
-from InitDB import (TABLE_COMPANIES_NAME,
+from InitDB import (TABLE_NAMES,
+                    TABLE_COMPANIES_NAME,
                     TABLE_COMPANIES_DICT,
                     TABLE_NAME_FUNDAMENTALS,
                     TABLE_NAME_OPERATIONAL_METRICS,
@@ -22,11 +23,13 @@ from InitDB import (TABLE_COMPANIES_NAME,
                     INSERT_STATEMENT_SHARES_OUTSTANDING,
                     INSERT_STATEMENT_PRICES_WEEKLY,
                     INSERT_STATEMENT_VALUATION_METRICS)
+from DBConnection import get_db_connection
 from pathlib import Path
 import json
 import pandas as pd
 from datetime import datetime, timezone, timedelta
 import time
+import argparse
 
 SAVED_JSON_PATH = 'data/{}/{}.json'
 
@@ -94,6 +97,21 @@ class DataUpdates():
             elif recency == 'week':
                 needs_update = True if datetime_delta > timedelta(days=7) else False
         return needs_update
+
+    @staticmethod
+    def remove_entry(ticker_name, dataset, db_connection):
+        DELETE_ENTRY = text("DELETE FROM {} WHERE ticker=:ticker and dataset=:dataset;".format(TABLE_NAME_DATA_UPDATES))
+
+        if dataset in TABLE_NAMES:
+            with db_connection.begin() as connection:
+                connection.execute(DELETE_ENTRY,
+                                   {'ticker': ticker_name,
+                                    'dataset': dataset})
+            print("Deleted ({},{}) in {}.".format(ticker_name, dataset, TABLE_NAME_DATA_UPDATES))
+
+        else:
+            print("Invalid table name: {}".format(dataset))
+
 
 class TableCompanies():
     def get_from(ticker_name, db_connection):
@@ -537,3 +555,21 @@ def add_update_ticker(ticker_name, db_connection):
     else:
         print('Aleady have entries in {} for {}.'.format(TABLE_NAME_VALUATION_METRICS, ticker_name))
     # print(TableValuationMetrics.get_from(ticker_name, db_connection).to_string())
+
+def force_update_ticker(ticker_name, table_name, db_connection):
+    DataUpdates.remove_entry(ticker_name, table_name, db_connection)
+    add_update_ticker(ticker_name, db_connection)
+
+def main():
+    parser = argparse.ArgumentParser(prog='TickerData.py', description='Organize ticker data.')
+    parser.add_argument('-t', '--ticker', required=True, help='Stock ticker')
+    parser.add_argument('-u', '--force_update_table', required=False, default=None, help='Force the update of the given table of a ticker.')
+
+    args = parser.parse_args()
+    db_connection = get_db_connection()
+
+    if args.force_update_table:
+        force_update_ticker(args.ticker, args.force_update_table, db_connection)
+
+if __name__ == "__main__":
+    main()
