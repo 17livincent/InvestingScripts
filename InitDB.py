@@ -5,8 +5,6 @@
 from sqlalchemy import text
 from DBConnection import get_db_connection
 
-engine = get_db_connection()
-
 '''
 Tables:
     - fundamentals          --> from raw AlphaVantage JSON
@@ -48,7 +46,7 @@ TABLE_COMPANIES_DICT = {
 
 TABLES = [
 """
-CREATE TABLE fundamentals (
+CREATE TABLE IF NOT EXISTS fundamentals (
     ticker TEXT NOT NULL,
     date DATE NOT NULL,
 
@@ -70,7 +68,7 @@ CREATE TABLE fundamentals (
 );
 """,
 """
-CREATE TABLE operational_metrics (
+CREATE TABLE IF NOT EXISTS operational_metrics (
     ticker TEXT NOT NULL,
     date DATE NOT NULL,
 
@@ -100,7 +98,7 @@ CREATE TABLE operational_metrics (
 );
 """,
 """
-CREATE TABLE prices_weekly (
+CREATE TABLE IF NOT EXISTS prices_weekly (
     ticker TEXT NOT NULL,
     date DATE NOT NULL,
 
@@ -111,7 +109,7 @@ CREATE TABLE prices_weekly (
 );
 """,
 """
-CREATE TABLE shares_outstanding (
+CREATE TABLE IF NOT EXISTS shares_outstanding (
     ticker TEXT NOT NULL,
     date DATE NOT NULL,
 
@@ -122,7 +120,7 @@ CREATE TABLE shares_outstanding (
 );
 """,
 """
-CREATE TABLE valuation_metrics (
+CREATE TABLE IF NOT EXISTS valuation_metrics (
     ticker TEXT NOT NULL,
     date DATE NOT NULL,
 
@@ -140,7 +138,7 @@ CREATE TABLE valuation_metrics (
 );
 """,
 """
-CREATE TABLE companies (
+CREATE TABLE IF NOT EXISTS companies (
     ticker TEXT PRIMARY KEY,
 
     company_name TEXT,
@@ -154,7 +152,7 @@ CREATE TABLE companies (
 );
 """,
 """
-CREATE TABLE data_updates (
+CREATE TABLE IF NOT EXISTS data_updates (
     ticker TEXT NOT NULL,
     dataset TEXT NOT NULL,
     last_updated TIMESTAMP,
@@ -163,7 +161,7 @@ CREATE TABLE data_updates (
 );
 """,
 """
-CREATE TABLE report_dates (
+CREATE TABLE IF NOT EXISTS report_dates (
     ticker TEXT NOT NULL,
     report_date DATE NULL
 )
@@ -172,23 +170,23 @@ CREATE TABLE report_dates (
 
 ADD_INDICES = [
 """
-CREATE INDEX idx_fundamentals_ticker
+CREATE INDEX IF NOT EXISTS idx_fundamentals_ticker
 ON fundamentals(ticker);
 """,
 """
-CREATE INDEX idx_operational_metrics_ticker
+CREATE INDEX IF NOT EXISTS idx_operational_metrics_ticker
 ON operational_metrics(ticker);
 """,
 """
-CREATE INDEX idx_valuation_metrics_ticker
+CREATE INDEX IF NOT EXISTS idx_valuation_metrics_ticker
 ON valuation_metrics(ticker);
 """,
 """
-CREATE INDEX idx_prices_weekly_ticker
+CREATE INDEX IF NOT EXISTS idx_prices_weekly_ticker
 ON prices_weekly(ticker);
 """,
 """
-CREATE INDEX idx_operational_metrics_roic
+CREATE INDEX IF NOT EXISTS idx_operational_metrics_roic
 ON operational_metrics(ttm_roic DESC);
 """
 ]
