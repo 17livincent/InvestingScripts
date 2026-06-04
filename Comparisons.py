@@ -164,6 +164,9 @@ def get_scores(df_watchlist_comparison):
     # Reward stability:
     #   quality_consistency = roic_3yr_avg - roic_3yr_std
     #   valuation_discount = current_ev_ebit / median_2yr_ev_ebit
+    # Add in valuation_coverage to show the number of valid metrics that factored into 'valuation_score'.
+    # Similarly add quality_coverage.
+    # Add in classification labels given the total_score.
 
     return df_watchlist_comparison_clean
 
