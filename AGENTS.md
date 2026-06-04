@@ -4,7 +4,7 @@ Guidance for coding agents working in this repository.
 
 ## Project Overview
 
-This repository is a small Python project for stock analysis. It pulls company, financial statement, share count, and weekly price data from the AlphaVantage API, stores raw payloads under `data/`, calculates operational and valuation metrics with pandas, writes tables to a Supabase Postgres database, and generates comparison graphs for tickers in `watchlists.json`.
+This repository is a small Python project for stock analysis. Its overall goal is to rank and screen stocks for medium- to long-term investing, with an emphasis on business quality, durable growth, valuation discipline, and balance-sheet risk. It pulls company, financial statement, share count, and weekly price data from the AlphaVantage API, stores raw payloads under `data/`, calculates operational and valuation metrics with pandas, writes tables to a Supabase Postgres database, and generates comparison graphs for tickers in `watchlists.json`.
 
 Core modules:
 

@@ -96,6 +96,77 @@ def get_unique_tickers_in_watchlist_array(watchlists_json):
 
     return all_tickers
 
+def get_scores(df_watchlist_comparison):
+    df_watchlist_comparison_clean = df_watchlist_comparison.copy()
+
+    df_watchlist_comparison_clean['debt_to_equity'] = df_watchlist_comparison_clean['debt_to_equity'].where(df_watchlist_comparison_clean['debt_to_equity'] >= 0, 5).clip(upper=5)
+
+    df_quality_score_components = pd.DataFrame()
+    df_quality_score_components['ttm_roic_perc_rank'] = df_watchlist_comparison_clean['ttm_roic'].rank(pct=True) * 100
+    df_quality_score_components['ttm_operating_margin_perc_rank'] = df_watchlist_comparison_clean['ttm_operating_margin'].rank(pct=True) * 100
+    df_quality_score_components['ttm_fcf_margin_perc_rank'] = df_watchlist_comparison_clean['ttm_fcf_margin'].rank(pct=True) * 100
+
+    quality_weights = pd.Series({
+        'ttm_roic_perc_rank': 0.6,
+        'ttm_operating_margin_perc_rank': 0.2,
+        'ttm_fcf_margin_perc_rank': 0.2
+    })
+    df_watchlist_comparison_clean['quality_score'] = (
+        df_quality_score_components.mul(quality_weights, axis=1).sum(axis=1, skipna=True) /
+        df_quality_score_components.notna().mul(quality_weights, axis=1).sum(axis=1)
+    )
+
+    df_watchlist_comparison_clean['growth_score'] = df_watchlist_comparison_clean['revenue_growth_yoy'].rank(pct=True) * 100
+
+    df_valuation_score_components = pd.DataFrame()
+    df_valuation_score_components['pe_ttm_perc_rank'] = df_watchlist_comparison_clean['pe_ttm'].rank(pct=True, ascending=False) * 100
+    df_valuation_score_components['ev_ebit_perc_rank'] = df_watchlist_comparison_clean['ev_ebit'].rank(pct=True, ascending=False) * 100
+    df_valuation_score_components['ev_fcf_perc_rank'] = df_watchlist_comparison_clean['ev_fcf'].rank(pct=True, ascending=False) * 100
+
+    df_watchlist_comparison_clean['valuation_score'] = df_valuation_score_components[['pe_ttm_perc_rank',
+                                                                                'ev_ebit_perc_rank',
+                                                                                'ev_fcf_perc_rank']].mean(axis=1, skipna=True)
+
+    df_risk_score_components = pd.DataFrame()
+    df_risk_score_components['debt_to_equity_perc_rank'] = (df_watchlist_comparison_clean['debt_to_equity']
+                                                            .rank(pct=True, ascending=False)
+                                                            .mul(100))
+    df_risk_score_components['ttm_fcf_margin_perc_rank'] = df_watchlist_comparison_clean['ttm_fcf_margin'].rank(pct=True).mul(100)
+    df_risk_score_components['ttm_operating_margin_perc_rank'] = df_watchlist_comparison_clean['ttm_operating_margin'].rank(pct=True).mul(100)
+    risk_weights = pd.Series({
+        'debt_to_equity_perc_rank': 0.5,
+        'ttm_fcf_margin_perc_rank': 0.3,
+        'ttm_operating_margin_perc_rank': 0.2
+    })
+    df_watchlist_comparison_clean['risk_score'] = (
+        df_risk_score_components.mul(risk_weights, axis=1).sum(axis=1, skipna=True) /
+        df_risk_score_components.notna().mul(risk_weights, axis=1).sum(axis=1)
+    )
+
+    score_columns = ['quality_score', 'growth_score', 'valuation_score', 'risk_score']
+    df_watchlist_comparison_clean[score_columns] = df_watchlist_comparison_clean[score_columns].fillna(0)
+
+    df_watchlist_comparison_clean['total_score'] = (0.5 * df_watchlist_comparison_clean['quality_score'] +
+                                              0.2 * df_watchlist_comparison_clean['growth_score'] +
+                                              0.2 * df_watchlist_comparison_clean['valuation_score'] +
+                                              0.1 * df_watchlist_comparison_clean['risk_score'])
+
+    df_watchlist_comparison_clean = df_watchlist_comparison_clean.sort_values(by='total_score', ascending=False)
+    print(df_watchlist_comparison_clean[['ticker',
+                                         'quality_score',
+                                         'growth_score',
+                                         'valuation_score',
+                                         'risk_score',
+                                         'total_score']])
+
+    # todo factor in 3-year averages.
+    # e.g. roic_3yr_avg, roic_3yr_std, revenue_growth_3yr_avg, fcf_margin_3yr_avg, ev_ebit_vs_2yr_median.
+    # Reward stability:
+    #   quality_consistency = roic_3yr_avg - roic_3yr_std
+    #   valuation_discount = current_ev_ebit / median_2yr_ev_ebit
+
+    return df_watchlist_comparison_clean
+
 def main():
     db_connection = get_db_connection()
 
@@ -171,9 +242,7 @@ def main():
                         print('Rank by greatest {}:'.format('ttm_roic'))
                         print(df_watchlist_comparison.to_string())
 
-                        df_watchlist_comparison = df_watchlist_comparison.sort_values(by='pe_ttm', ascending=True)
-                        print('Rank by lowest {}:'.format('pe_ttm'))
-                        print(df_watchlist_comparison.to_string())
+                        get_scores(df_watchlist_comparison)
 
 if __name__ == "__main__":
     main()

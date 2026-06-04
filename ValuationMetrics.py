@@ -89,5 +89,6 @@ def get_latest_valuation(df_valuation_metrics, ticker):
     return {
         'ticker': ticker,
         'pe_ttm': latest['pe_ttm'],
-        'ev_ebit': latest['ev_ebit']
+        'ev_ebit': latest['ev_ebit'],
+        'ev_fcf': latest['ev_fcf']
     }

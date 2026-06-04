@@ -157,6 +157,7 @@ def get_latest_operational_metrics(df_calculated, ticker):
         'ttm_operating_margin': latest['ttm_operating_margin'],
         'ttm_net_margin': latest['ttm_net_margin'],
         'ttm_ocf_margin': latest['ttm_ocf_margin'],
+        'ttm_fcf_margin': latest['ttm_fcf_margin'],
         'revenue_growth_yoy': latest['revenue_growth_yoy'],
         'debt_to_equity': latest['debt_to_equity']
     }
