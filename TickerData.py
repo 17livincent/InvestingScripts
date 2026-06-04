@@ -477,13 +477,13 @@ class TableValuationMetrics():
         df_valuation_metrics = calculate_valuation_metrics(df_operational_metrics,
                                                            df_prices_weekly,
                                                            df_shares_outstanding)
-        DELETE_ALL = text("DELETE FROM {} WHERE ticker=:ticker".format(TABLE_NAME_VALUATION_METRICS,
-                                                                       ticker_name))
-        with db_connection.begin() as connection:
-            connection.execute(DELETE_ALL,
-                               {'ticker': ticker_name})
+        # Find the latest date value.
+        latest_date = TableValuationMetrics.get_latest_date(ticker_name, db_connection)
+        if latest_date == None:
+            pass
+        else:
+            df_valuation_metrics = df_valuation_metrics[df_valuation_metrics['date'] > latest_date]
         TableValuationMetrics.append(ticker_name, df_valuation_metrics, db_connection)
-
 
 def add_update_ticker(ticker_name, db_connection):
     """

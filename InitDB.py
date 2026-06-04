@@ -188,6 +188,18 @@ ON prices_weekly(ticker);
 """
 CREATE INDEX IF NOT EXISTS idx_operational_metrics_roic
 ON operational_metrics(ttm_roic DESC);
+""",
+"""
+CREATE INDEX IF NOT EXISTS idx_prices_weekly_ticker_date_desc
+ON prices_weekly(ticker, date DESC);
+""",
+"""
+CREATE INDEX IF NOT EXISTS idx_valuation_metrics_ticker_date_desc
+ON valuation_metrics(ticker, date DESC);
+""",
+"""
+CREATE INDEX IF NOT EXISTS idx_shares_outstanding_ticker_date_desc
+ON shares_outstanding(ticker, date DESC);
 """
 ]
 
