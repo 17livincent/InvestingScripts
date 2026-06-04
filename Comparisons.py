@@ -150,7 +150,6 @@ def main():
 
             for watchlist_name in watchlists_json:
                 watchlist_tickers = watchlists_json[watchlist_name]
-                print(watchlist_tickers)
 
                 if watchlist_tickers:
                     df_watchlist_comparison = df_comparison.loc[df_comparison['ticker'].isin(watchlist_tickers)]
@@ -168,11 +167,12 @@ def main():
                                             df_watchlist_comparison,
                                             watchlist_calculated)
 
-                        print('\r\n\r\n{}: Rank by greatest {}:'.format(watchlist_name, 'ttm_roic'))
+                        print('\r\n\r\n{} : {}'.format(watchlist_name, watchlist_tickers))
+                        print('Rank by greatest {}:'.format('ttm_roic'))
                         print(df_watchlist_comparison.to_string())
 
                         df_watchlist_comparison = df_watchlist_comparison.sort_values(by='pe_ttm', ascending=True)
-                        print('\r\n\r\n{}: Rank by lowest {}:'.format(watchlist_name, 'pe_ttm'))
+                        print('Rank by lowest {}:'.format('pe_ttm'))
                         print(df_watchlist_comparison.to_string())
 
 if __name__ == "__main__":
