@@ -52,30 +52,23 @@ def create_graph_figures(title, graphs, df_comparison, df_data):
 
         for ticker_name in df_data:
             ticker_calculated = df_data[ticker_name][graph_x_y['table']]
-            since_calculated = None
 
-            if graph_x_y['x'] == 'date':
-                since_calculated = ticker_calculated[now - ticker_calculated['date'] < timedelta(weeks=time_frames[graph_x_y['y']])]
-            else:
-                since_calculated = ticker_calculated
-
-            if not since_calculated.empty:
-                try:
-                    if graph_x_y['type'] == 'line':
-                        ax[row,col].plot(since_calculated[graph_x_y['x']],
-                                        since_calculated[graph_x_y['y']],
-                                        label=ticker_name,
-                                        linewidth=(3 if ticker_name == top_ttm_roic else 1.5))
-                    elif graph_x_y['type'] == 'scatter':
-                        ax[row,col].scatter(since_calculated[graph_x_y['x']],
-                                            since_calculated[graph_x_y['y']],
-                                            label=ticker_name)
-                        ax[row,col].annotate(ticker_name,
-                                             (since_calculated[graph_x_y['x']].iloc[0],
-                                             since_calculated[graph_x_y['y']].iloc[0]))
-                except KeyError as e:
-                    print("WARNING key {} missing from {} for {}.".format(graph_x_y['y'], since_calculated.columns, ticker_name))
-                    print(e)
+            try:
+                if graph_x_y['type'] == 'line':
+                    ax[row,col].plot(ticker_calculated[graph_x_y['x']],
+                                    ticker_calculated[graph_x_y['y']],
+                                    label=ticker_name,
+                                    linewidth=(3 if ticker_name == top_ttm_roic else 1.5))
+                elif graph_x_y['type'] == 'scatter':
+                    ax[row,col].scatter(ticker_calculated[graph_x_y['x']],
+                                        ticker_calculated[graph_x_y['y']],
+                                        label=ticker_name)
+                    ax[row,col].annotate(ticker_name,
+                                            (ticker_calculated[graph_x_y['x']].iloc[0],
+                                            ticker_calculated[graph_x_y['y']].iloc[0]))
+            except KeyError as e:
+                print("WARNING key {} missing from {} for {}.".format(graph_x_y['y'], ticker_calculated.columns, ticker_name))
+                print(e)
 
         ax[row,col].set_xlabel(graph_x_y['x'])
         ax[row,col].set_ylabel(graph_x_y['y'])
@@ -120,8 +113,12 @@ def main():
             try:
                 add_update_ticker(ticker, db_connection)
 
-                df_operational_metrics = TableOperationalMetrics.get_from(ticker, db_connection)
-                df_valuation_metrics = TableValuationMetrics.get_from(ticker, db_connection)
+                df_operational_metrics = TableOperationalMetrics.get_from(ticker,
+                                                                          db_connection,
+                                                                          datetime.now() - timedelta(weeks=OPERATIONAL_TIME_FRAME_WEEKS))
+                df_valuation_metrics = TableValuationMetrics.get_from(ticker,
+                                                                      db_connection,
+                                                                      datetime.now() - timedelta(weeks=VALUATION_TIME_FRAME_WEEKS))
 
                 # Some post-processing
                 post_process_df(df_valuation_metrics)
