@@ -1,0 +1,4 @@
+interface:
+  display_name: "Stock Analyzer Trader"
+  short_description: "Analyze watchlist metrics for long-term stock ideas"
+  default_prompt: "Use $stock-analyzer-trader to compare the computed metrics for this watchlist and identify the strongest long-term candidates."
