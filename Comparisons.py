@@ -42,6 +42,40 @@ valuation_graphs = [{'x': 'date', 'y': 'pe_ttm', 'type': 'line', 'percentFormat'
 operational_figure = {'graphs': operational_graphs, 'title': 'Operational Comparisons'}
 valuation_figure = {'graphs': valuation_graphs, 'title': 'Valuation Comparisons'}
 
+QUALITY_WEIGHTS = pd.Series({
+    'ttm_roic_perc_rank': 0.45,
+    'ttm_operating_margin_perc_rank': 0.2,
+    'ttm_fcf_margin_perc_rank': 0.15,
+    'quality_consistency_perc_rank': 0.2
+})
+
+GROWTH_WEIGHTS = pd.Series({
+    'revenue_growth_yoy_perc_rank': 0.6,
+    'revenue_growth_yoy_3yr_avg_perc_rank': 0.4
+})
+
+VALUATION_WEIGHTS = pd.Series({
+    'pe_ttm_perc_rank': 0.2333,
+    'ev_ebit_perc_rank': 0.2333,
+    'ev_fcf_perc_rank': 0.2333,
+    'pe_ttm_discount_perc_rank': 0.1,
+    'ev_ebit_discount_perc_rank': 0.1,
+    'ev_fcf_discount_perc_rank': 0.1
+})
+
+RISK_WEIGHTS = pd.Series({
+    'debt_to_equity_perc_rank': 0.5,
+    'ttm_fcf_margin_perc_rank': 0.3,
+    'ttm_operating_margin_perc_rank': 0.2
+})
+
+TOTAL_SCORE_WEIGHTS = {
+    'quality_score': 0.4,
+    'growth_score': 0.2,
+    'valuation_score': 0.2,
+    'risk_score': 0.2
+}
+
 def create_graph_figures(title, graphs, df_comparison, df_data):
     now = pd.to_datetime(datetime.now())
 
@@ -177,23 +211,14 @@ def get_scores(df_watchlist_comparison):
     df_quality_score_components['quality_consistency_perc_rank'] = (df_watchlist_comparison_clean['ttm_roic_3yr_avg'] -
                                                                     df_watchlist_comparison_clean['ttm_roic_3yr_std']).rank(pct=True) * 100
 
-    quality_weights = pd.Series({
-        'ttm_roic_perc_rank': 0.45,
-        'ttm_operating_margin_perc_rank': 0.2,
-        'ttm_fcf_margin_perc_rank': 0.15,
-        'quality_consistency_perc_rank': 0.2
-    })
-    df_watchlist_comparison_clean['quality_score'] = get_weighted_score(df_quality_score_components, quality_weights)
+    df_watchlist_comparison_clean['quality_score'] = get_weighted_score(df_quality_score_components, QUALITY_WEIGHTS)
     df_watchlist_comparison_clean['quality_coverage'] = get_component_coverage(df_quality_score_components)
 
     df_growth_score_components = pd.DataFrame()
     df_growth_score_components['revenue_growth_yoy_perc_rank'] = df_watchlist_comparison_clean['revenue_growth_yoy'].rank(pct=True) * 100
     df_growth_score_components['revenue_growth_yoy_3yr_avg_perc_rank'] = df_watchlist_comparison_clean['revenue_growth_yoy_3yr_avg'].rank(pct=True) * 100
-    growth_weights = pd.Series({
-        'revenue_growth_yoy_perc_rank': 0.6,
-        'revenue_growth_yoy_3yr_avg_perc_rank': 0.4
-    })
-    df_watchlist_comparison_clean['growth_score'] = get_weighted_score(df_growth_score_components, growth_weights)
+
+    df_watchlist_comparison_clean['growth_score'] = get_weighted_score(df_growth_score_components, GROWTH_WEIGHTS)
 
     df_valuation_score_components = pd.DataFrame()
     df_valuation_score_components['pe_ttm_perc_rank'] = df_watchlist_comparison_clean['pe_ttm'].rank(pct=True, ascending=False) * 100
@@ -209,15 +234,7 @@ def get_scores(df_watchlist_comparison):
     df_valuation_score_components['ev_ebit_discount_perc_rank'] = df_watchlist_comparison_clean['ev_ebit_discount'].rank(pct=True, ascending=True) * 100
     df_valuation_score_components['ev_fcf_discount_perc_rank'] = df_watchlist_comparison_clean['ev_fcf_discount'].rank(pct=True, ascending=True) * 100
 
-    valuation_weights = pd.Series({
-        'pe_ttm_perc_rank': 0.2333,
-        'ev_ebit_perc_rank': 0.2333,
-        'ev_fcf_perc_rank': 0.2333,
-        'pe_ttm_discount_perc_rank': 0.1,
-        'ev_ebit_discount_perc_rank': 0.1,
-        'ev_fcf_discount_perc_rank': 0.1
-    })
-    df_watchlist_comparison_clean['valuation_score'] = get_weighted_score(df_valuation_score_components, valuation_weights)
+    df_watchlist_comparison_clean['valuation_score'] = get_weighted_score(df_valuation_score_components, VALUATION_WEIGHTS)
     df_watchlist_comparison_clean['valuation_coverage'] = get_component_coverage(df_valuation_score_components)
 
     df_risk_score_components = pd.DataFrame()
@@ -226,12 +243,8 @@ def get_scores(df_watchlist_comparison):
                                                             .mul(100))
     df_risk_score_components['ttm_fcf_margin_perc_rank'] = df_watchlist_comparison_clean['ttm_fcf_margin'].rank(pct=True).mul(100)
     df_risk_score_components['ttm_operating_margin_perc_rank'] = df_watchlist_comparison_clean['ttm_operating_margin'].rank(pct=True).mul(100)
-    risk_weights = pd.Series({
-        'debt_to_equity_perc_rank': 0.5,
-        'ttm_fcf_margin_perc_rank': 0.3,
-        'ttm_operating_margin_perc_rank': 0.2
-    })
-    df_watchlist_comparison_clean['risk_score'] = get_weighted_score(df_risk_score_components, risk_weights)
+
+    df_watchlist_comparison_clean['risk_score'] = get_weighted_score(df_risk_score_components, RISK_WEIGHTS)
     df_watchlist_comparison_clean['history_coverage'] = get_component_coverage(
         df_watchlist_comparison_clean[['ttm_roic_3yr_avg',
                                        'ttm_roic_3yr_std',
@@ -246,10 +259,10 @@ def get_scores(df_watchlist_comparison):
     score_columns = ['quality_score', 'growth_score', 'valuation_score', 'risk_score']
     df_watchlist_comparison_clean[score_columns] = df_watchlist_comparison_clean[score_columns].fillna(0)
 
-    df_watchlist_comparison_clean['total_score'] = (0.5 * df_watchlist_comparison_clean['quality_score'] +
-                                              0.2 * df_watchlist_comparison_clean['growth_score'] +
-                                              0.2 * df_watchlist_comparison_clean['valuation_score'] +
-                                              0.1 * df_watchlist_comparison_clean['risk_score'])
+    df_watchlist_comparison_clean['total_score'] = (TOTAL_SCORE_WEIGHTS['quality_score'] * df_watchlist_comparison_clean['quality_score'] +
+                                              TOTAL_SCORE_WEIGHTS['growth_score'] * df_watchlist_comparison_clean['growth_score'] +
+                                              TOTAL_SCORE_WEIGHTS['valuation_score'] * df_watchlist_comparison_clean['valuation_score'] +
+                                              TOTAL_SCORE_WEIGHTS['risk_score'] * df_watchlist_comparison_clean['risk_score'])
 
     df_watchlist_comparison_clean['classification'] = df_watchlist_comparison_clean.apply(get_score_classification, axis=1)
 
