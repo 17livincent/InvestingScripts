@@ -15,6 +15,9 @@ FIGURE_ROWS = 2
 FIGURE_COLS = 2
 OPERATIONAL_TIME_FRAME_WEEKS = 52*6
 VALUATION_TIME_FRAME_WEEKS = 52*2
+OPERATIONAL_AVG_YEARS = 3
+VALUATION_MEDIAN_YEARS = 2
+MIN_HISTORY_OBSERVATIONS = 4
 
 time_frames = {'ttm_roic': OPERATIONAL_TIME_FRAME_WEEKS,
                'revenue_growth_yoy': OPERATIONAL_TIME_FRAME_WEEKS,
@@ -96,6 +99,72 @@ def get_unique_tickers_in_watchlist_array(watchlists_json):
 
     return all_tickers
 
+def get_recent_window(df_data, years):
+    df_recent_window = df_data.iloc[0:0]
+
+    if not df_data.empty and 'date' in df_data.columns:
+        df_data = df_data.copy()
+        df_data['date'] = pd.to_datetime(df_data['date'])
+        latest_date = df_data['date'].max()
+        start_date = latest_date - pd.DateOffset(years=years)
+        df_recent_window = df_data.loc[df_data['date'] >= start_date]
+
+    return df_recent_window
+
+def get_metric_summary(df_data, metric, years, aggregate):
+    metric_summary = pd.NA
+
+    if metric in df_data.columns:
+        df_window = get_recent_window(df_data, years)
+        metric_values = pd.to_numeric(df_window[metric], errors='coerce').dropna()
+
+        if len(metric_values) >= MIN_HISTORY_OBSERVATIONS:
+            metric_summary = getattr(metric_values, aggregate)()
+
+    return metric_summary
+
+def get_trailing_average_metrics(df_operational_metrics, df_valuation_metrics):
+    return {
+        'ttm_roic_3yr_avg': get_metric_summary(df_operational_metrics, 'ttm_roic', OPERATIONAL_AVG_YEARS, 'mean'),
+        'ttm_roic_3yr_std': get_metric_summary(df_operational_metrics, 'ttm_roic', OPERATIONAL_AVG_YEARS, 'std'),
+        'revenue_growth_yoy_3yr_avg': get_metric_summary(df_operational_metrics, 'revenue_growth_yoy', OPERATIONAL_AVG_YEARS, 'mean'),
+        'ttm_operating_margin_3yr_avg': get_metric_summary(df_operational_metrics, 'ttm_operating_margin', OPERATIONAL_AVG_YEARS, 'mean'),
+        'ttm_fcf_margin_3yr_avg': get_metric_summary(df_operational_metrics, 'ttm_fcf_margin', OPERATIONAL_AVG_YEARS, 'mean'),
+        'pe_ttm_2yr_median': get_metric_summary(df_valuation_metrics, 'pe_ttm', VALUATION_MEDIAN_YEARS, 'median'),
+        'ev_ebit_2yr_median': get_metric_summary(df_valuation_metrics, 'ev_ebit', VALUATION_MEDIAN_YEARS, 'median'),
+        'ev_fcf_2yr_median': get_metric_summary(df_valuation_metrics, 'ev_fcf', VALUATION_MEDIAN_YEARS, 'median')
+    }
+
+def get_weighted_score(df_score_components, weights):
+    weighted_component_sum = df_score_components.mul(weights, axis=1).sum(axis=1, skipna=True)
+    available_weight_sum = df_score_components.notna().mul(weights, axis=1).sum(axis=1)
+
+    return weighted_component_sum / available_weight_sum
+
+def get_discount_to_median(current_values, median_values):
+    current_values = pd.to_numeric(current_values, errors='coerce')
+    median_values = pd.to_numeric(median_values, errors='coerce')
+
+    return (current_values / median_values).where((current_values > 0) & (median_values > 0))
+
+def get_component_coverage(df_score_components):
+    return df_score_components.notna().sum(axis=1) / len(df_score_components.columns)
+
+def get_score_classification(row):
+    minimum_coverage = min(row['quality_coverage'], row['valuation_coverage'], row['history_coverage'])
+    classification = 'Low rank'
+
+    if minimum_coverage < 0.6:
+        classification = 'Incomplete data'
+    elif row['total_score'] >= 80:
+        classification = 'High quality candidate'
+    elif row['total_score'] >= 65:
+        classification = 'Watchlist quality'
+    elif row['total_score'] >= 50:
+        classification = 'Mixed'
+
+    return classification
+
 def get_scores(df_watchlist_comparison):
     df_watchlist_comparison_clean = df_watchlist_comparison.copy()
 
@@ -105,27 +174,51 @@ def get_scores(df_watchlist_comparison):
     df_quality_score_components['ttm_roic_perc_rank'] = df_watchlist_comparison_clean['ttm_roic'].rank(pct=True) * 100
     df_quality_score_components['ttm_operating_margin_perc_rank'] = df_watchlist_comparison_clean['ttm_operating_margin'].rank(pct=True) * 100
     df_quality_score_components['ttm_fcf_margin_perc_rank'] = df_watchlist_comparison_clean['ttm_fcf_margin'].rank(pct=True) * 100
+    df_quality_score_components['quality_consistency_perc_rank'] = (df_watchlist_comparison_clean['ttm_roic_3yr_avg'] -
+                                                                    df_watchlist_comparison_clean['ttm_roic_3yr_std']).rank(pct=True) * 100
 
     quality_weights = pd.Series({
-        'ttm_roic_perc_rank': 0.6,
+        'ttm_roic_perc_rank': 0.45,
         'ttm_operating_margin_perc_rank': 0.2,
-        'ttm_fcf_margin_perc_rank': 0.2
+        'ttm_fcf_margin_perc_rank': 0.15,
+        'quality_consistency_perc_rank': 0.2
     })
-    df_watchlist_comparison_clean['quality_score'] = (
-        df_quality_score_components.mul(quality_weights, axis=1).sum(axis=1, skipna=True) /
-        df_quality_score_components.notna().mul(quality_weights, axis=1).sum(axis=1)
-    )
+    df_watchlist_comparison_clean['quality_score'] = get_weighted_score(df_quality_score_components, quality_weights)
+    df_watchlist_comparison_clean['quality_coverage'] = get_component_coverage(df_quality_score_components)
 
-    df_watchlist_comparison_clean['growth_score'] = df_watchlist_comparison_clean['revenue_growth_yoy'].rank(pct=True) * 100
+    df_growth_score_components = pd.DataFrame()
+    df_growth_score_components['revenue_growth_yoy_perc_rank'] = df_watchlist_comparison_clean['revenue_growth_yoy'].rank(pct=True) * 100
+    df_growth_score_components['revenue_growth_yoy_3yr_avg_perc_rank'] = df_watchlist_comparison_clean['revenue_growth_yoy_3yr_avg'].rank(pct=True) * 100
+    growth_weights = pd.Series({
+        'revenue_growth_yoy_perc_rank': 0.6,
+        'revenue_growth_yoy_3yr_avg_perc_rank': 0.4
+    })
+    df_watchlist_comparison_clean['growth_score'] = get_weighted_score(df_growth_score_components, growth_weights)
 
     df_valuation_score_components = pd.DataFrame()
     df_valuation_score_components['pe_ttm_perc_rank'] = df_watchlist_comparison_clean['pe_ttm'].rank(pct=True, ascending=False) * 100
     df_valuation_score_components['ev_ebit_perc_rank'] = df_watchlist_comparison_clean['ev_ebit'].rank(pct=True, ascending=False) * 100
     df_valuation_score_components['ev_fcf_perc_rank'] = df_watchlist_comparison_clean['ev_fcf'].rank(pct=True, ascending=False) * 100
+    df_watchlist_comparison_clean['pe_ttm_discount'] = get_discount_to_median(df_watchlist_comparison_clean['pe_ttm'],
+                                                                                 df_watchlist_comparison_clean['pe_ttm_2yr_median'])
+    df_watchlist_comparison_clean['ev_ebit_discount'] = get_discount_to_median(df_watchlist_comparison_clean['ev_ebit'],
+                                                                                df_watchlist_comparison_clean['ev_ebit_2yr_median'])
+    df_watchlist_comparison_clean['ev_fcf_discount'] = get_discount_to_median(df_watchlist_comparison_clean['ev_fcf'],
+                                                                               df_watchlist_comparison_clean['ev_fcf_2yr_median'])
+    df_valuation_score_components['pe_ttm_discount_perc_rank'] = df_watchlist_comparison_clean['pe_ttm_discount'].rank(pct=True, ascending=True) * 100
+    df_valuation_score_components['ev_ebit_discount_perc_rank'] = df_watchlist_comparison_clean['ev_ebit_discount'].rank(pct=True, ascending=True) * 100
+    df_valuation_score_components['ev_fcf_discount_perc_rank'] = df_watchlist_comparison_clean['ev_fcf_discount'].rank(pct=True, ascending=True) * 100
 
-    df_watchlist_comparison_clean['valuation_score'] = df_valuation_score_components[['pe_ttm_perc_rank',
-                                                                                'ev_ebit_perc_rank',
-                                                                                'ev_fcf_perc_rank']].mean(axis=1, skipna=True)
+    valuation_weights = pd.Series({
+        'pe_ttm_perc_rank': 0.2333,
+        'ev_ebit_perc_rank': 0.2333,
+        'ev_fcf_perc_rank': 0.2333,
+        'pe_ttm_discount_perc_rank': 0.1,
+        'ev_ebit_discount_perc_rank': 0.1,
+        'ev_fcf_discount_perc_rank': 0.1
+    })
+    df_watchlist_comparison_clean['valuation_score'] = get_weighted_score(df_valuation_score_components, valuation_weights)
+    df_watchlist_comparison_clean['valuation_coverage'] = get_component_coverage(df_valuation_score_components)
 
     df_risk_score_components = pd.DataFrame()
     df_risk_score_components['debt_to_equity_perc_rank'] = (df_watchlist_comparison_clean['debt_to_equity']
@@ -138,9 +231,16 @@ def get_scores(df_watchlist_comparison):
         'ttm_fcf_margin_perc_rank': 0.3,
         'ttm_operating_margin_perc_rank': 0.2
     })
-    df_watchlist_comparison_clean['risk_score'] = (
-        df_risk_score_components.mul(risk_weights, axis=1).sum(axis=1, skipna=True) /
-        df_risk_score_components.notna().mul(risk_weights, axis=1).sum(axis=1)
+    df_watchlist_comparison_clean['risk_score'] = get_weighted_score(df_risk_score_components, risk_weights)
+    df_watchlist_comparison_clean['history_coverage'] = get_component_coverage(
+        df_watchlist_comparison_clean[['ttm_roic_3yr_avg',
+                                       'ttm_roic_3yr_std',
+                                       'revenue_growth_yoy_3yr_avg',
+                                       'ttm_operating_margin_3yr_avg',
+                                       'ttm_fcf_margin_3yr_avg',
+                                       'pe_ttm_2yr_median',
+                                       'ev_ebit_2yr_median',
+                                       'ev_fcf_2yr_median']]
     )
 
     score_columns = ['quality_score', 'growth_score', 'valuation_score', 'risk_score']
@@ -151,22 +251,19 @@ def get_scores(df_watchlist_comparison):
                                               0.2 * df_watchlist_comparison_clean['valuation_score'] +
                                               0.1 * df_watchlist_comparison_clean['risk_score'])
 
+    df_watchlist_comparison_clean['classification'] = df_watchlist_comparison_clean.apply(get_score_classification, axis=1)
+
     df_watchlist_comparison_clean = df_watchlist_comparison_clean.sort_values(by='total_score', ascending=False)
     print(df_watchlist_comparison_clean[['ticker',
                                          'quality_score',
                                          'growth_score',
                                          'valuation_score',
                                          'risk_score',
-                                         'total_score']])
-
-    # todo factor in 3-year averages.
-    # e.g. roic_3yr_avg, roic_3yr_std, revenue_growth_3yr_avg, fcf_margin_3yr_avg, ev_ebit_vs_2yr_median.
-    # Reward stability:
-    #   quality_consistency = roic_3yr_avg - roic_3yr_std
-    #   valuation_discount = current_ev_ebit / median_2yr_ev_ebit
-    # Add in valuation_coverage to show the number of valid metrics that factored into 'valuation_score'.
-    # Similarly add quality_coverage.
-    # Add in classification labels given the total_score.
+                                         'total_score',
+                                         'quality_coverage',
+                                         'valuation_coverage',
+                                         'history_coverage',
+                                         'classification']].to_string())
 
     return df_watchlist_comparison_clean
 
@@ -199,8 +296,8 @@ def main():
 
                 comparison_dict = get_latest_operational_metrics(df_operational_metrics, ticker)
                 comparison_dict.update(get_latest_valuation(df_valuation_metrics, ticker))
+                comparison_dict.update(get_trailing_average_metrics(df_operational_metrics, df_valuation_metrics))
 
-                comparison_dict['ROIC_EV_SCORE'] = comparison_dict['ttm_roic'] / comparison_dict['ev_ebit']
                 comparison_rows.append(comparison_dict)
                 ev_ebit_ttm_roic = pd.DataFrame([comparison_dict])
 
@@ -245,7 +342,9 @@ def main():
                         print('Rank by greatest {}:'.format('ttm_roic'))
                         print(df_watchlist_comparison.to_string())
 
-                        get_scores(df_watchlist_comparison)
+                        df_watchlist_comparison = get_scores(df_watchlist_comparison)
+
+                        df_watchlist_comparison.to_json('data/{}_Comparison.json'.format(watchlist_name), orient='records', indent=4)
 
 if __name__ == "__main__":
     main()
