@@ -31,5 +31,12 @@
         "VST",
         "TLN",
         "VRT"
+    ],
+    "Financial Services": [
+        "JPM",
+        "BAC",
+        "C",
+        "SYF",
+        "SOFI"
     ]
 }
