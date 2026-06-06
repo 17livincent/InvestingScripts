@@ -10,8 +10,7 @@
         "SNDK",
         "NVDA",
         "AMD",
-        "AVGO",
-        "INTC"
+        "AVGO"
     ],
     "Software": [
         "PLTR",
@@ -21,11 +20,9 @@
         "NOW",
         "MSFT"
     ],
-    "AI Energy": [
-        "VRT",
-        "BE",
-        "GEV",
-        "NEE",
-        "OKLO"
+    "Industrials": [
+        "APH",
+        "GE",
+        "RR.L"
     ]
 }
