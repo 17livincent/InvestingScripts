@@ -23,6 +23,13 @@
     "Industrials": [
         "APH",
         "GE",
-        "RR.L"
+        "ETN"
+    ],
+    "AI Energy": [
+        "BE",
+        "OKLO",
+        "VST",
+        "TLN",
+        "VRT"
     ]
 }
