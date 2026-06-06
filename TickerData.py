@@ -123,6 +123,7 @@ class TableCompanies():
         """
         overview_path = SAVED_JSON_PATH.format(ticker_name, OVERVIEW_FUNCTION_NAME)
         overview_json = request_json(OVERVIEW_FUNCTION_NAME, ticker_name)
+        time.sleep(1)
 
         if 'Symbol' in overview_json:
             Path('data/{}'.format(ticker_name)).mkdir(exist_ok=True)

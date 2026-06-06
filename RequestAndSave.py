@@ -26,7 +26,7 @@ recency = {
 }
 
 def request_json(function, symbol):
-    result = subprocess.run(['pass', 'show', 'Keys/AlphaVantage'], capture_output=True, text=True)
+    result = subprocess.run(['pass', 'show', 'Keys/AlphaVantagePremium'], capture_output=True, text=True)
     key = result.stdout
 
     url = 'https://www.alphavantage.co/query?function={}&symbol={}&apikey={}'.format(function, symbol, key.strip())

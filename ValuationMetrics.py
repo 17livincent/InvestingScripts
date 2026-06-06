@@ -13,8 +13,10 @@ def get_shares_outstanding(ticker):
         shares_outstanding = json.load(shares_outstanding_json)
         for item in shares_outstanding['data']:
             rows_list.append({'date': item['date'],
-                            'basic_shares': float(item['shares_outstanding_basic']),
-                            'diluted_shares': float(item['shares_outstanding_diluted'])})
+                            'basic_shares': float(0 if item['shares_outstanding_basic'] == None
+                                                  else item['shares_outstanding_basic']),
+                            'diluted_shares': float(0 if item['shares_outstanding_diluted'] == None
+                                                    else item['shares_outstanding_diluted'])})
     df_shares_outstanding = pd.DataFrame(rows_list)
     df_shares_outstanding['date'] = pd.to_datetime(df_shares_outstanding['date']).astype('datetime64[ns]')
     df_shares_outstanding = df_shares_outstanding.sort_values('date')
@@ -34,6 +36,8 @@ def get_timeseries_weekly_adjusted(ticker):
     return df_weekly_stock_close
 
 def calculate_valuation_metrics(df_fundamentals, df_weekly_prices, df_shares_outstanding):
+    df_fundamentals = df_fundamentals.sort_values(by='date')
+    df_shares_outstanding = df_shares_outstanding.sort_values(by='date')
     df_merged = pd.merge_asof(
         df_weekly_prices[['date', 'adjusted_close', 'volume']],
         df_fundamentals,
