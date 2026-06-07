@@ -35,8 +35,13 @@
     "Financial Services": [
         "JPM",
         "BAC",
-        "C",
+        "C"
+    ],
+    "Consumer Credit": [
         "SYF",
-        "SOFI"
+        "BFH",
+        "COF",
+        "ALLY",
+        "AXP"
     ]
 }
