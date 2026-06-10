@@ -27,8 +27,7 @@ from DBConnection import get_db_connection
 from pathlib import Path
 import json
 import pandas as pd
-from datetime import datetime, timezone, timedelta
-import time
+from datetime import datetime, timezone, date
 import argparse
 
 SAVED_JSON_PATH = 'data/{}/{}.json'
@@ -80,15 +79,14 @@ class DataUpdates():
 
     @staticmethod
     def check_needs_update(table_name, last_update_datetime):
-        recency = RECENCY[table_name]
         needs_update = True
-        if last_update_datetime != None:
-            datetime_delta = datetime.now(timezone.utc) - last_update_datetime
+        if last_update_datetime == None:
+            needs_update = True
+        elif last_update_datetime.date() == datetime.now(timezone.utc).date():
             needs_update = False
-            if recency == 'quarter':
-                needs_update = True if datetime_delta >= timedelta(days=90) else False
-            elif recency == 'week':
-                needs_update = True if datetime_delta > timedelta(days=7) else False
+        else:
+            print("{} may be updated, {} vs {}.".format(last_update_datetime,
+                                                        datetime.now(timezone.utc).date()))
         return needs_update
 
     @staticmethod
@@ -123,7 +121,7 @@ class TableCompanies():
         """
         overview_path = SAVED_JSON_PATH.format(ticker_name, OVERVIEW_FUNCTION_NAME)
         overview_json = request_json(OVERVIEW_FUNCTION_NAME, ticker_name)
-        time.sleep(1)
+        # time.sleep(1)
 
         if 'Symbol' in overview_json:
             Path('data/{}'.format(ticker_name)).mkdir(exist_ok=True)
@@ -146,10 +144,37 @@ class TableCompanies():
             }, inplace=True)
             df_overview['market_cap_latest'] = df_overview['market_cap_latest'].astype(float)
 
-            df_overview[list(TABLE_COMPANIES_DICT)].to_sql(name=TABLE_COMPANIES_NAME,
-                                                            con=db_connection,
-                                                            if_exists='append',
-                                                            index=False)
+            UPSERT_ENTRY = text("INSERT INTO {} (ticker, " \
+                                "company_name, " \
+                                "sector, " \
+                                "industry," \
+                                "exchange," \
+                                "country," \
+                                "market_cap_latest) "
+                                "VALUES (:ticker, " \
+                                ":company_name, " \
+                                ":sector," \
+                                ":industry," \
+                                ":exchange," \
+                                ":country," \
+                                ":market_cap_latest) "
+                                "ON CONFLICT (ticker) DO UPDATE "
+                                "SET " \
+                                "company_name = EXCLUDED.company_name, " \
+                                "sector = EXCLUDED.sector, " \
+                                "industry = EXCLUDED.industry, " \
+                                "exchange = EXCLUDED.exchange, " \
+                                "country = EXCLUDED.country, " \
+                                "market_cap_latest = EXCLUDED.market_cap_latest".format(TABLE_COMPANIES_NAME))
+            with db_connection.begin() as connection:
+                connection.execute(UPSERT_ENTRY, {'ticker': overview_json['Symbol'],
+                                                  'company_name': overview_json['Name'],
+                                                  'sector': overview_json['Sector'],
+                                                  'industry': overview_json['Industry'],
+                                                  'exchange': overview_json['Exchange'],
+                                                  'country': overview_json['Country'],
+                                                  'market_cap_latest': float(overview_json['MarketCapitalization'])})
+
             DataUpdates.add_data_update(ticker_name, TABLE_COMPANIES_NAME, db_connection)
             print('Added row for {} to table {}.'.format(ticker_name, TABLE_COMPANIES_NAME))
 
@@ -214,7 +239,7 @@ class TableFundamentals():
         for function_name in FUNCTIONS_TO_UPDATE:
             function_path = SAVED_JSON_PATH.format(ticker_name, function_name)
             function_json = request_json(function_name, ticker_name)
-            time.sleep(1)
+            # time.sleep(1)
             if 'symbol' in function_json:
                 Path('data/{}'.format(ticker_name)).mkdir(exist_ok=True)
                 with open(function_path, 'w') as export_json_file:
@@ -357,7 +382,7 @@ class TableSharesOutstanding():
         """
         function_path = SAVED_JSON_PATH.format(ticker_name, SHARES_OUTSTANDING_FUNCTION_NAME)
         function_json = request_json(SHARES_OUTSTANDING_FUNCTION_NAME, ticker_name)
-        time.sleep(1)
+        # time.sleep(1)
         if 'symbol' in function_json:
             Path('data/{}'.format(ticker_name)).mkdir(exist_ok=True)
             with open(function_path, 'w') as export_json_file:
@@ -431,7 +456,7 @@ class TablePricesWeekly():
         """
         function_path = SAVED_JSON_PATH.format(ticker_name, PRICES_WEEKLY_FUNCTION_NAME)
         function_json = request_json(PRICES_WEEKLY_FUNCTION_NAME, ticker_name)
-        time.sleep(1)
+        # time.sleep(1)
         if 'Weekly Adjusted Time Series' in function_json:
             Path('data/{}'.format(ticker_name)).mkdir(exist_ok=True)
             with open(function_path, 'w') as export_json_file:
