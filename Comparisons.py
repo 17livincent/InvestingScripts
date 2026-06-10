@@ -361,7 +361,6 @@ def main():
 
                 df_time_series_daily_adjusted = get_time_series_daily_adjusted(ticker,
                                                                                datetime.now() - timedelta(weeks=VALUATION_TIME_FRAME_WEEKS))
-                print(df_time_series_daily_adjusted)
 
                 # Some post-processing
                 post_process_valuation_metrics(df_valuation_metrics)
