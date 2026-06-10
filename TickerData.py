@@ -2,7 +2,7 @@
     Read, update ticker data.
 """
 
-from RequestAndSave import request_json
+from RequestAndSave import request_data
 from OperationalMetrics import (get_saved_fundamentals,
                                 calculate_operational_metrics)
 from ValuationMetrics import (get_shares_outstanding,
@@ -120,7 +120,7 @@ class TableCompanies():
             and push it to the 'companies' table.
         """
         overview_path = SAVED_JSON_PATH.format(ticker_name, OVERVIEW_FUNCTION_NAME)
-        overview_json = request_json(OVERVIEW_FUNCTION_NAME, ticker_name)
+        overview_json = request_data(OVERVIEW_FUNCTION_NAME, ticker_name)
         # time.sleep(1)
 
         if 'Symbol' in overview_json:
@@ -238,7 +238,7 @@ class TableFundamentals():
                             INCOME_STATEMENT_FUNCTION_NAME]
         for function_name in FUNCTIONS_TO_UPDATE:
             function_path = SAVED_JSON_PATH.format(ticker_name, function_name)
-            function_json = request_json(function_name, ticker_name)
+            function_json = request_data(function_name, ticker_name)
             # time.sleep(1)
             if 'symbol' in function_json:
                 Path('data/{}'.format(ticker_name)).mkdir(exist_ok=True)
@@ -381,7 +381,7 @@ class TableSharesOutstanding():
             Write them to a local JSON file and push the new dataframe rows to 'shares_outstanding'.
         """
         function_path = SAVED_JSON_PATH.format(ticker_name, SHARES_OUTSTANDING_FUNCTION_NAME)
-        function_json = request_json(SHARES_OUTSTANDING_FUNCTION_NAME, ticker_name)
+        function_json = request_data(SHARES_OUTSTANDING_FUNCTION_NAME, ticker_name)
         # time.sleep(1)
         if 'symbol' in function_json:
             Path('data/{}'.format(ticker_name)).mkdir(exist_ok=True)
@@ -455,7 +455,7 @@ class TablePricesWeekly():
             Write them to a local JSON file and push the new dataframe rows to 'prices_weekly'.
         """
         function_path = SAVED_JSON_PATH.format(ticker_name, PRICES_WEEKLY_FUNCTION_NAME)
-        function_json = request_json(PRICES_WEEKLY_FUNCTION_NAME, ticker_name)
+        function_json = request_data(PRICES_WEEKLY_FUNCTION_NAME, ticker_name)
         # time.sleep(1)
         if 'Weekly Adjusted Time Series' in function_json:
             Path('data/{}'.format(ticker_name)).mkdir(exist_ok=True)

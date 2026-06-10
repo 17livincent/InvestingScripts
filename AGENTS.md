@@ -4,7 +4,7 @@ Guidance for coding agents working in this repository.
 
 ## Project Overview
 
-This repository is a small Python project for stock analysis. Its overall goal is to rank and screen stocks for medium- to long-term investing, with an emphasis on business quality, durable growth, valuation discipline, and balance-sheet risk. It pulls company, financial statement, share count, and weekly price data from the AlphaVantage API, stores raw payloads under `data/`, calculates operational and valuation metrics with pandas, writes tables to a Supabase Postgres database, and generates comparison graphs for tickers in `watchlists.json`.
+This repository is a small Python project for stock analysis. Its overall goal is to rank and screen stocks for medium- to long-term investing, with an emphasis on business quality, durable growth, valuation discipline, and balance-sheet risk. It pulls company, financial statement, share count, weekly price, and daily adjusted price data from the AlphaVantage API, stores raw payloads under `data/`, calculates operational and valuation metrics with pandas, writes tables to a Supabase Postgres database, and generates comparison graphs for tickers in `watchlists.json`.
 
 Core modules:
 
@@ -14,7 +14,8 @@ Core modules:
 - `TickerData.py`: main update orchestration for companies, fundamentals, prices, shares, operational metrics, and valuation metrics.
 - `OperationalMetrics.py`: transforms saved statements into fundamentals and operational metrics.
 - `ValuationMetrics.py`: combines fundamentals, weekly prices, and shares to calculate valuation metrics.
-- `Comparisons.py`: updates all tickers in `watchlists.json`, prints ranked comparisons, writes comparison PNGs under `data/`, and writes scored watchlist comparison JSON files.
+- `TimeSeriesDaily.py`: fetches AlphaVantage `TIME_SERIES_DAILY_ADJUSTED` data for a ticker, persists successful responses under `data/<TICKER>/`, and returns filtered daily OHLC data as a dataframe.
+- `Comparisons.py`: updates all tickers in `watchlists.json`, prints ranked comparisons, writes operational, valuation, and daily price-change comparison PNGs under `data/`, and writes scored watchlist comparison JSON files.
 
 ## Environment
 
@@ -37,7 +38,7 @@ Do not hard-code, print, commit, or replace secrets.
 
 The scripts read credentials from GNU `pass`:
 
-- AlphaVantage API key: `pass show Keys/AlphaVantage`
+- AlphaVantage API key: `pass show Keys/AlphaVantagePremium`
 - Supabase password: `pass show Password/Supabase`
 
 `DBConnection.py` contains the Supabase host/user connection string template. Treat database writes as real production-like side effects unless the user says otherwise.
@@ -49,8 +50,11 @@ Networked scripts can call AlphaVantage and Supabase. Be mindful of API rate lim
 Generated/local data lives under `data/`:
 
 - `data/<TICKER>/*.json`: raw AlphaVantage payloads.
+- `data/<TICKER>/TIME_SERIES_DAILY_ADJUSTED.json`: raw persisted daily adjusted time series payload from `TimeSeriesDaily.py`.
 - `data/<TICKER>/calculated_fundamentals.csv`: local calculated output if generated.
-- `data/* Comparisons.png`: matplotlib comparison charts.
+- `data/* Operational Comparisons.png`: matplotlib operational comparison charts.
+- `data/* Valuation Comparisons.png`: matplotlib valuation comparison charts.
+- `data/* Time Series Daily Comparisons.png`: matplotlib daily close percent-change comparison charts.
 - `data/*_Comparison.json`: scored watchlist comparison output from `Comparisons.py`.
 
 `watchlists.json` defines the named watchlists used by `Comparisons.py`.
@@ -76,7 +80,9 @@ Normal update flow:
 2. Company overview, fundamentals, shares outstanding, and weekly prices are refreshed only when stale.
 3. Operational metrics are recalculated from `fundamentals`.
 4. Valuation metrics are recalculated from fundamentals, operational metrics, prices, and shares.
-5. `Comparisons.py` runs this for every unique ticker in `watchlists.json`, then generates watchlist charts and scored comparison JSON.
+5. `Comparisons.py` runs this for every unique ticker in `watchlists.json`, fetches recent `TIME_SERIES_DAILY_ADJUSTED` data for comparison charts, then generates watchlist charts and scored comparison JSON.
+
+Daily adjusted time series data is currently used for graphing only. It is requested directly through `TimeSeriesDaily.get_time_series_daily_adjusted()`, persisted as local JSON when AlphaVantage returns `Time Series (Daily)`, and loaded from `data/<TICKER>/TIME_SERIES_DAILY_ADJUSTED.json` when the request does not return daily time series data. It is not written to a database table by the normal update flow.
 
 Use `TickerData.py -t <TICKER> -u <TABLE_NAME>` to force a table refresh by removing that ticker/table entry from `data_updates` before updating. Valid table names are based on `InitDB.TABLE_NAMES`.
 
@@ -105,12 +111,14 @@ Score components and weights:
 
 Classifications are based on coverage and total score: any row with minimum `quality_coverage`, `valuation_coverage`, or `history_coverage` below 0.6 is `Incomplete data`; otherwise `total_score >= 80` is `High quality candidate`, `>= 65` is `Watchlist quality`, `>= 50` is `Mixed`, and lower scores are `Low rank`.
 
+`Comparisons.py` also fetches daily adjusted time series over the valuation time frame and post-processes the returned close values into `close_change_perc` for the `Time Series Daily Comparisons` chart. This graph shows each ticker's close percent change over the selected date range and is separate from the scoring model.
+
 ## Development Practices
 
 - Keep changes small and aligned with the current flat-script style unless a larger refactor is explicitly requested.
 - Prefer pandas/SQLAlchemy APIs already used in the project over ad hoc parsing or direct database drivers.
 - Preserve the existing table names and column names unless intentionally migrating schema and all dependent insert/query code.
-- Be careful with date handling. The code mixes quarter-based financial statement dates, weekly price dates, and timezone-aware update timestamps.
+- Be careful with date handling. The code mixes quarter-based financial statement dates, weekly price dates, daily adjusted price dates, and timezone-aware update timestamps.
 - Avoid adding broad side effects at import time. Several current files already execute work as scripts; when adding new behavior, prefer functions plus `if __name__ == "__main__":`.
 - Do not commit generated `data/` artifacts or local JSON files unless the user explicitly asks.
 - Do not replace the `pass`-based secret flow with checked-in `.env` values.
@@ -127,10 +135,11 @@ uv run python -m py_compile <file>.py
 
 - For pure calculation changes, prefer a small local pandas check using existing saved files under `data/<TICKER>/` when available.
 - For database-writing changes, explain the expected side effects before running scripts that update Supabase.
-- For graph changes, run `uv run python Comparisons.py` only when AlphaVantage/Supabase access is intended, then inspect the generated PNG files under `data/`.
+- For graph changes, run `uv run python Comparisons.py` only when AlphaVantage/Supabase access is intended, then inspect the generated PNG files under `data/`, including the daily price-change comparison chart when relevant.
 
 ## Known Caveats
 
 - Some SQL query strings are built with formatted ticker values. If accepting new user input paths, prefer parameterized queries.
-- `RequestAndSave.request_json()` strips the AlphaVantage key from `pass` output before building the URL; preserve that normalization when touching request code.
-- AlphaVantage error/rate-limit responses are handled by falling back to saved files when possible, so missing local JSON can surface as `FileNotFoundError`.
+- `RequestAndSave.request_data()` strips the AlphaVantage key from `pass` output before building the URL; preserve that normalization when touching request code.
+- AlphaVantage error/rate-limit responses are handled by falling back to saved files when possible for saved fundamentals and weekly data, so missing local JSON can surface as `FileNotFoundError`.
+- `TimeSeriesDaily.py` calls `request_data()` directly with AlphaVantage query params such as `outputsize`, `datatype`, and `entitlement`; it persists successful responses locally and falls back to the saved `TIME_SERIES_DAILY_ADJUSTED.json` file if the response lacks `Time Series (Daily)`.

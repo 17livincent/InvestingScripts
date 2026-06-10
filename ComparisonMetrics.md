@@ -1,11 +1,12 @@
 # Comparison Metrics
 
-`Comparisons.py` creates two comparison PNGs for each watchlist in `watchlists.json`:
+`Comparisons.py` creates three comparison PNGs for each watchlist in `watchlists.json`:
 
 - `<watchlist> Operational Comparisons.png`
 - `<watchlist> Valuation Comparisons.png`
+- `<watchlist> Time Series Daily Comparisons.png`
 
-Operational charts use about six years of history. Valuation charts use about two years of history. Percent-based operational metrics are shown as percentages on the chart axis.
+Operational charts use about six years of history. Valuation charts and daily price-change charts use about two years of history. Percent-based operational metrics and price changes are shown as percentages on the chart axis.
 
 This file describes the metrics graphed by `Comparisons.py`, how they are calculated in this project, and how to read higher or lower values.
 
@@ -184,6 +185,32 @@ How to interpret it:
 - Lower right is usually least attractive: low ROIC and high EV/EBIT.
 
 The scatter plot should be read as a starting point, not a final ranking. A company with high ROIC can deserve a higher EV/EBIT if its growth and durability are better. A low EV/EBIT company may be cheap for a reason if profits are declining or cyclical.
+
+## Price Change Percent Graph: `close_change_perc`
+
+The time series daily comparison figure plots:
+
+- X-axis: `date`
+- Y-axis: `close_change_perc`
+
+This chart compares stock price performance over the same recent window used for valuation charts, currently about two years.
+
+In this project, `TimeSeriesDaily.get_time_series_daily_adjusted()` requests AlphaVantage `TIME_SERIES_DAILY_ADJUSTED` data with delayed entitlement, saves successful responses to `data/<TICKER>/TIME_SERIES_DAILY_ADJUSTED.json`, and falls back to that saved file if the request does not return `Time Series (Daily)`.
+
+`Comparisons.py` filters the returned daily rows to the requested date range, sorts them by date, then calculates `close_change_perc` from the first close value in that filtered range:
+
+```text
+initial_close_value = first close in selected date range
+close_change_perc = (close - initial_close_value) / close
+```
+
+How to interpret it:
+
+- Positive values mean the stock's close is above the starting close for the selected range.
+- Negative values mean the stock's close is below the starting close for the selected range.
+- A line that rises faster than peers shows stronger price appreciation over the selected range.
+- This graph is market-price performance only. It is not part of the quality, growth, valuation, risk, or total score.
+- Price change should be read alongside business and valuation metrics. A rising stock can become expensive, and a falling stock can reflect either opportunity or deteriorating fundamentals.
 
 ## Printed Rankings
 
