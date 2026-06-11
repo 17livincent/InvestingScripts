@@ -6,10 +6,11 @@ from ValuationMetrics import get_latest_valuation
 from TickerData import TableOperationalMetrics, TableValuationMetrics, add_update_ticker
 from TimeSeriesDaily import get_time_series_daily_adjusted
 from DBConnection import get_db_connection
+from IndexData import get_index_list
 import pandas as pd
 import matplotlib.pyplot as plt
 from matplotlib.ticker import PercentFormatter
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import json
 
 OPERATIONAL_TIME_FRAME_WEEKS = 52*6
@@ -344,24 +345,26 @@ def main():
         print(watchlists_json)
 
         all_tickers = get_unique_tickers_in_watchlist_array(watchlists_json)
-        print('Unique tickers: {}'.format(all_tickers))
+        print('Unique tickers and indeces: {}'.format(all_tickers))
+
+        index_list = get_index_list()
 
         df_calculated_all = {}
         comparison_rows = []
 
-        for ticker in all_tickers:
+        for ticker in [ticker for ticker in all_tickers if ticker not in index_list.items()]:
             try:
                 add_update_ticker(ticker, db_connection)
 
                 df_operational_metrics = TableOperationalMetrics.get_from(ticker,
                                                                           db_connection,
-                                                                          datetime.now() - timedelta(weeks=OPERATIONAL_TIME_FRAME_WEEKS))
+                                                                          datetime.now(timezone.utc) - timedelta(weeks=OPERATIONAL_TIME_FRAME_WEEKS))
                 df_valuation_metrics = TableValuationMetrics.get_from(ticker,
                                                                       db_connection,
-                                                                      datetime.now() - timedelta(weeks=VALUATION_TIME_FRAME_WEEKS))
+                                                                      datetime.now(timezone.utc) - timedelta(weeks=VALUATION_TIME_FRAME_WEEKS))
 
                 df_time_series_daily_adjusted = get_time_series_daily_adjusted(ticker,
-                                                                               datetime.now() - timedelta(weeks=VALUATION_TIME_FRAME_WEEKS))
+                                                                               datetime.now(timezone.utc) - timedelta(weeks=VALUATION_TIME_FRAME_WEEKS))
 
                 # Some post-processing
                 post_process_valuation_metrics(df_valuation_metrics)

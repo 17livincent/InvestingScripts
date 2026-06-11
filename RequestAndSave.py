@@ -25,11 +25,15 @@ recency = {
     'TIME_SERIES_WEEKLY_ADJUSTED': 'week'
 }
 
-def request_data(function, symbol, params:dict=None):
+def get_api_key():
     result = subprocess.run(['pass', 'show', 'Keys/AlphaVantagePremium'], capture_output=True, text=True)
     key = result.stdout
+    return key.strip()
 
-    url = 'https://www.alphavantage.co/query?function={}&symbol={}&apikey={}'.format(function, symbol, key.strip())
+def request_data(function, symbol, params:dict=None):
+    url = 'https://www.alphavantage.co/query?function={}&symbol={}&apikey={}'.format(function,
+                                                                                     symbol,
+                                                                                     get_api_key())
     r = requests.get(url, params)
     data = r.json()
     return data
@@ -48,18 +52,10 @@ def request_and_save_json(function, symbol):
     else:
         print("WARNING: received for {}:\r\n{}".format(function, data))
 
-def get_most_recent_date(function_name, function_json):
-    recent_date = None
-    if function_name == 'BALANCE_SHEET':
-        recent_date = function_json['quarterlyReports'][0]['fiscalDateEnding']
-    elif function_name == 'CASH_FLOW':
-        recent_date = function_json['quarterlyReports'][0]['fiscalDateEnding']
-    elif function_name == 'INCOME_STATEMENT':
-        recent_date = function_json['quarterlyReports'][0]['fiscalDateEnding']
-    elif function_name == 'SHARES_OUTSTANDING':
-        recent_date = function_json['data'][0]['date']
-    elif function_name == 'TIME_SERIES_WEEKLY_ADJUSTED':
-        recent_date = list(function_json['Weekly Adjusted Time Series'].keys())[0]
-
-    recent_date = pd.to_datetime(recent_date)
-    return recent_date
+def request_index_catalog():
+    url = 'https://www.alphavantage.co/query?function={}&datatype={}&apikey={}'.format('INDEX_CATALOG',
+                                                                                       'json',
+                                                                                       get_api_key())
+    r = requests.get(url)
+    data = r.json()
+    return data
