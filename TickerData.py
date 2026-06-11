@@ -85,7 +85,8 @@ class DataUpdates():
         elif last_update_datetime.date() == datetime.now(timezone.utc).date():
             needs_update = False
         else:
-            print("{} may be updated, {} vs {}.".format(last_update_datetime,
+            print("{} may be updated, {} vs {}.".format(table_name,
+                                                        last_update_datetime,
                                                         datetime.now(timezone.utc).date()))
         return needs_update
 

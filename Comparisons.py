@@ -167,6 +167,7 @@ def create_graph_figures(title, figure_def, df_comparison, df_data):
     fig.suptitle(title, fontsize=24)
     fig.tight_layout()
     fig.savefig('data/{}.png'.format(title))
+    plt.close(fig)
 
 def post_process_valuation_metrics(df_data):
     try:
