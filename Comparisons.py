@@ -5,9 +5,8 @@ from OperationalMetrics import get_latest_operational_metrics
 from ValuationMetrics import get_latest_valuation
 from TickerData import TableOperationalMetrics, TableValuationMetrics, add_update_ticker
 from TimeSeriesDaily import get_time_series_daily_adjusted
-from IndexData import get_index_time_series_daily
+from IndexData import get_index_list, get_index_time_series_daily
 from DBConnection import get_db_connection
-from IndexData import get_index_list
 import pandas as pd
 import matplotlib.pyplot as plt
 from matplotlib.ticker import PercentFormatter
@@ -131,7 +130,10 @@ def create_graph_figures(title, figure_def, df_comparison, df_data):
     num_rows = figure_def['rows']
     num_cols = figure_def['cols']
 
-    top_ttm_roic = df_comparison.iloc[0]['ticker']
+    top_ttm_roic = None
+    if not df_comparison.empty and 'ticker' in df_comparison.columns:
+        top_ttm_roic = df_comparison.iloc[0]['ticker']
+
     fig, ax = plt.subplots(num_rows, num_cols, figsize=(18, 12))
 
     for graph_num, graph_x_y in enumerate(graphs):
@@ -141,27 +143,36 @@ def create_graph_figures(title, figure_def, df_comparison, df_data):
         for ticker_name in df_data:
             ticker_calculated = df_data[ticker_name][graph_x_y['table']]
 
-            try:
-                if graph_x_y['type'] == 'line':
-                    ax[row,col].plot(ticker_calculated[graph_x_y['x']],
+            if ticker_calculated.empty:
+                print("WARNING: no {} data for {}.".format(graph_x_y['table'], ticker_name))
+                continue
+
+            missing_columns = [column for column in [graph_x_y['x'], graph_x_y['y']]
+                               if column not in ticker_calculated.columns]
+            if missing_columns:
+                print("WARNING columns {} missing from {} for {}.".format(missing_columns,
+                                                                          ticker_calculated.columns,
+                                                                          ticker_name))
+                continue
+
+            if graph_x_y['type'] == 'line':
+                ax[row,col].plot(ticker_calculated[graph_x_y['x']],
+                                 ticker_calculated[graph_x_y['y']],
+                                 label=ticker_name,
+                                 linewidth=(3 if ticker_name == top_ttm_roic else 1.5))
+            elif graph_x_y['type'] == 'scatter':
+                ax[row,col].scatter(ticker_calculated[graph_x_y['x']],
                                     ticker_calculated[graph_x_y['y']],
-                                    label=ticker_name,
-                                    linewidth=(3 if ticker_name == top_ttm_roic else 1.5))
-                elif graph_x_y['type'] == 'scatter':
-                    ax[row,col].scatter(ticker_calculated[graph_x_y['x']],
-                                        ticker_calculated[graph_x_y['y']],
-                                        label=ticker_name)
-                    ax[row,col].annotate(ticker_name,
-                                            (ticker_calculated[graph_x_y['x']].iloc[0],
-                                            ticker_calculated[graph_x_y['y']].iloc[0]))
-            except KeyError as e:
-                print("WARNING key {} missing from {} for {}.".format(graph_x_y['y'], ticker_calculated.columns, ticker_name))
-                print(e)
-                assert(0)
+                                    label=ticker_name)
+                ax[row,col].annotate(ticker_name,
+                                     (ticker_calculated[graph_x_y['x']].iloc[0],
+                                      ticker_calculated[graph_x_y['y']].iloc[0]))
 
         ax[row,col].set_xlabel(graph_x_y['x'])
         ax[row,col].set_ylabel(graph_x_y['y'])
-        ax[row,col].legend(loc='center left', fontsize=8, bbox_to_anchor=(1, 0.5))
+        handles, labels = ax[row,col].get_legend_handles_labels()
+        if handles:
+            ax[row,col].legend(handles, labels, loc='center left', fontsize=8, bbox_to_anchor=(1, 0.5))
         if graph_x_y['grid'] == True:
             ax[row,col].grid(True, alpha=0.3)
         if graph_x_y['percentFormat'] == True:
@@ -179,18 +190,19 @@ def post_process_valuation_metrics(df_data):
         pass
 
 def post_process_time_series_daily_adj(df_time_series_daily_adj):
-    # Turn the 'close' column into a percent difference of the intial value.
+    # Turn the 'close' column into a percent difference of the initial value.
+    if df_time_series_daily_adj.empty or 'close' not in df_time_series_daily_adj.columns:
+        return
+
     initial_close_value = df_time_series_daily_adj.iloc[0]['close']
-    df_time_series_daily_adj['close_change_perc'] = (df_time_series_daily_adj['close'] - initial_close_value) / df_time_series_daily_adj['close']
+    df_time_series_daily_adj['close_change_perc'] = (df_time_series_daily_adj['close'] - initial_close_value) / initial_close_value
 
-def get_unique_tickers_in_watchlist_array(watchlists_json):
-    all_tickers_indeces = []
+def get_unique_symbols_in_watchlists(watchlists_json):
+    all_symbols = []
     for watchlist_tickers in [watchlists_json[watchlist_name] for watchlist_name in watchlists_json]:
-        all_tickers_indeces.extend(watchlist_tickers)
-    all_tickers_indeces.sort()
-    all_tickers_indeces = list(set(all_tickers_indeces))
+        all_symbols.extend(watchlist_tickers)
 
-    return all_tickers_indeces
+    return sorted(set(all_symbols))
 
 def get_recent_window(df_data, years):
     df_recent_window = df_data.iloc[0:0]
@@ -346,31 +358,36 @@ def main():
         watchlists_json = json.load(watchlists_file)
         print(watchlists_json)
 
-        all_tickers_indeces = get_unique_tickers_in_watchlist_array(watchlists_json)
-        print('Unique tickers and indeces: {}'.format(all_tickers_indeces))
+        all_symbols = get_unique_symbols_in_watchlists(watchlists_json)
+        print('Unique tickers and indices: {}'.format(all_symbols))
 
-        index_list = get_index_list()
+        index_symbols = set(get_index_list())
+        stock_tickers = [symbol for symbol in all_symbols if symbol not in index_symbols]
+        watchlist_indices = [symbol for symbol in all_symbols if symbol in index_symbols]
 
         df_calculated_all = {}
         comparison_rows = []
 
-        time_series_start_time = datetime.now(timezone.utc) - timedelta(weeks=VALUATION_TIME_FRAME_WEEKS)
+        run_time = datetime.now(timezone.utc)
+        operational_start_time = run_time - timedelta(weeks=OPERATIONAL_TIME_FRAME_WEEKS)
+        valuation_start_time = run_time - timedelta(weeks=VALUATION_TIME_FRAME_WEEKS)
+        time_series_start_time = valuation_start_time
 
-        for ticker in [ticker for ticker in all_tickers_indeces if ticker not in list(index_list)]:
+        for ticker in stock_tickers:
             try:
                 add_update_ticker(ticker, db_connection)
 
                 df_operational_metrics = TableOperationalMetrics.get_from(ticker,
                                                                           db_connection,
-                                                                          datetime.now(timezone.utc) - timedelta(weeks=OPERATIONAL_TIME_FRAME_WEEKS))
+                                                                          operational_start_time)
                 df_valuation_metrics = TableValuationMetrics.get_from(ticker,
                                                                       db_connection,
-                                                                      datetime.now(timezone.utc) - timedelta(weeks=VALUATION_TIME_FRAME_WEEKS))
+                                                                      valuation_start_time)
 
                 df_time_series_daily_adjusted = get_time_series_daily_adjusted(ticker,
-                                                                               datetime.now(timezone.utc) - timedelta(weeks=VALUATION_TIME_FRAME_WEEKS))
+                                                                               valuation_start_time)
 
-                if time_series_start_time < df_time_series_daily_adjusted['date'].iloc[0]:
+                if not df_time_series_daily_adjusted.empty and time_series_start_time < df_time_series_daily_adjusted['date'].iloc[0]:
                     time_series_start_time = df_time_series_daily_adjusted['date'].iloc[0]
 
                 # Some post-processing
@@ -398,53 +415,57 @@ def main():
                 print(e)
                 print(ticker)
 
-        # Get time series daily of any indeces.
-        for index in [index for index in all_tickers_indeces if index in list(index_list)]:
-            df_index_time_series_daily = get_index_time_series_daily(index, time_series_start_time)
+        # Get time series daily of any indices.
+        for index_symbol in watchlist_indices:
+            df_index_time_series_daily = get_index_time_series_daily(index_symbol, time_series_start_time)
             post_process_time_series_daily_adj(df_index_time_series_daily)
-            df_calculated_all[index] = {'operational_metrics': pd.DataFrame(),
-                                        'valuation_metrics': pd.DataFrame(),
-                                        'ev_ebit_ttm_roic': pd.DataFrame(),
-                                        'time_series_daily_adj': df_index_time_series_daily}
+            df_calculated_all[index_symbol] = {'operational_metrics': pd.DataFrame(),
+                                               'valuation_metrics': pd.DataFrame(),
+                                               'ev_ebit_ttm_roic': pd.DataFrame(),
+                                               'time_series_daily_adj': df_index_time_series_daily}
 
-        if comparison_rows:
-            df_comparison = pd.DataFrame(comparison_rows)
+        df_comparison = pd.DataFrame(comparison_rows)
+        if not df_comparison.empty:
             df_comparison = df_comparison.sort_values(by='ttm_roic', ascending=False)
-            print(watchlists_json)
 
-            for watchlist_name in watchlists_json:
-                watchlist_tickers_indices = watchlists_json[watchlist_name]
+        print(watchlists_json)
 
-                if watchlist_tickers_indices:
-                    df_watchlist_comparison = df_comparison.loc[df_comparison['ticker'].isin(watchlist_tickers_indices)]
+        for watchlist_name in watchlists_json:
+            watchlist_symbols = watchlists_json[watchlist_name]
 
-                    if not df_watchlist_comparison.empty:
-                        watchlist_calculated = {key: df_calculated_all[key] for key in watchlists_json[watchlist_name] if key in df_calculated_all}
-                        watchlist_calculated_tickers = {key: watchlist_calculated[key] for key in watchlist_calculated if key not in list(index_list)}
+            if watchlist_symbols:
+                watchlist_calculated = {key: df_calculated_all[key] for key in watchlist_symbols if key in df_calculated_all}
+                watchlist_stock_tickers = [ticker for ticker in watchlist_symbols if ticker not in index_symbols]
+                watchlist_calculated_stocks = {key: watchlist_calculated[key] for key in watchlist_stock_tickers if key in watchlist_calculated}
 
-                        watchlist_tickers = [ticker for ticker in watchlist_tickers_indices if ticker not in list(index_list)]
-                        df_watchlist_ticker_comparison = df_watchlist_comparison[~df_watchlist_comparison['ticker'].isin(list(index_list))]
+                if not df_comparison.empty:
+                    df_watchlist_stock_comparison = df_comparison.loc[df_comparison['ticker'].isin(watchlist_stock_tickers)]
+                else:
+                    df_watchlist_stock_comparison = df_comparison
 
-                        create_graph_figures('{} {}'.format(watchlist_name, operational_figure['title']),
-                                             operational_figure,
-                                             df_watchlist_ticker_comparison,
-                                             watchlist_calculated_tickers)
-                        create_graph_figures('{} {}'.format(watchlist_name, valuation_figure['title']),
-                                            valuation_figure,
-                                            df_watchlist_ticker_comparison,
-                                            watchlist_calculated_tickers)
-                        create_graph_figures('{} {}'.format(watchlist_name, time_series_figure['title']),
-                                             time_series_figure,
-                                             df_watchlist_comparison,
-                                             watchlist_calculated)
+                if not df_watchlist_stock_comparison.empty:
+                    create_graph_figures('{} {}'.format(watchlist_name, operational_figure['title']),
+                                         operational_figure,
+                                         df_watchlist_stock_comparison,
+                                         watchlist_calculated_stocks)
+                    create_graph_figures('{} {}'.format(watchlist_name, valuation_figure['title']),
+                                         valuation_figure,
+                                         df_watchlist_stock_comparison,
+                                         watchlist_calculated_stocks)
 
-                        print('\r\n\r\n{} : {}'.format(watchlist_name, watchlist_tickers))
-                        print('Rank by greatest {}:'.format('ttm_roic'))
-                        print(df_watchlist_ticker_comparison.to_string())
+                    print('\r\n\r\n{} : {}'.format(watchlist_name, watchlist_stock_tickers))
+                    print('Rank by greatest {}:'.format('ttm_roic'))
+                    print(df_watchlist_stock_comparison.to_string())
 
-                        df_watchlist_ticker_comparison = get_scores(df_watchlist_ticker_comparison)
+                    df_watchlist_stock_comparison = get_scores(df_watchlist_stock_comparison)
 
-                        df_watchlist_ticker_comparison.to_json('data/{}_Comparison.json'.format(watchlist_name), orient='records', indent=4)
+                    df_watchlist_stock_comparison.to_json('data/{}_Comparison.json'.format(watchlist_name), orient='records', indent=4)
+
+                if watchlist_calculated:
+                    create_graph_figures('{} {}'.format(watchlist_name, time_series_figure['title']),
+                                         time_series_figure,
+                                         df_watchlist_stock_comparison,
+                                         watchlist_calculated)
 
 if __name__ == "__main__":
     main()

@@ -2,10 +2,9 @@
     Get index data.
 """
 
-from RequestAndSave import request_index_catalog, get_api_key
+from RequestAndSave import request_index_catalog, request_data
 import json
-import requests
-from datetime import datetime, timezone
+from datetime import datetime
 import pandas as pd
 
 def request_index_list():
@@ -27,35 +26,23 @@ def get_index_list():
 
     return index_list_dict
 
-def get_index_time_series_daily(index_symbol, minimum_date:datetime):
-    url = 'https://www.alphavantage.co/query?function={}&symbol={}&interval={}&apikey={}'.format('INDEX_DATA',
-                                                                                                 index_symbol,
-                                                                                                 'daily',
-                                                                                                 get_api_key())
-    r = requests.get(url)
-    data_json = r.json()
+def get_index_time_series_daily(index_symbol, minimum_date: datetime):
+    data_json = request_data('INDEX_DATA', index_symbol, {'interval': 'daily'})
     df_index_data = pd.DataFrame()
 
-    if 'data' in list(data_json):
-        for data in data_json['data']:
-            data['date'] = datetime.strptime(data['date'], '%Y-%m-%d').astimezone(timezone.utc)
+    if data_json and 'data' in data_json and data_json['data']:
+        df_index_data = pd.DataFrame.from_records(data_json['data'])
+        df_index_data = df_index_data.reindex(columns=['date', 'open', 'high', 'low', 'close'])
+        df_index_data['date'] = pd.to_datetime(df_index_data['date'], utc=True, errors='coerce')
 
-        df_index_data['date'] = [data['date'] for data in data_json['data']
-                                 if data['date'] >= minimum_date]
+        for column in ['open', 'high', 'low', 'close']:
+            df_index_data[column] = pd.to_numeric(df_index_data[column], errors='coerce')
 
-        df_index_data['open'] = [float(data['open']) for data in data_json['data']
-                                 if data['date'] >= minimum_date]
-
-        df_index_data['high'] = [float(data['high']) for data in data_json['data']
-                                 if data['date'] >= minimum_date]
-
-        df_index_data['low'] = [float(data['low']) for data in data_json['data']
-                                if data['date'] >= minimum_date]
-
-        df_index_data['close'] = [float(data['close']) for data in data_json['data']
-                                  if data['date'] >= minimum_date]
-
-        df_index_data['date'] = pd.to_datetime(df_index_data['date'], utc=True)
+        df_index_data = df_index_data.loc[df_index_data['date'] >= minimum_date,
+                                          ['date', 'open', 'high', 'low', 'close']]
+        df_index_data = df_index_data.dropna(subset=['date', 'close'])
         df_index_data = df_index_data.sort_values('date')
+    else:
+        print("WARNING: no daily index data for {}.".format(index_symbol))
 
     return df_index_data
