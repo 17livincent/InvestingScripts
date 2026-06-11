@@ -6,7 +6,7 @@
 - `<watchlist> Valuation Comparisons.png`
 - `<watchlist> Time Series Daily Comparisons.png`
 
-Operational charts use about six years of history. Valuation charts and daily price-change charts use about two years of history. Percent-based operational metrics and price changes are shown as percentages on the chart axis.
+Operational charts use about six years of history. Valuation charts and daily price-change charts use about two years of history. Percent-based operational metrics and price changes are shown as percentages on the chart axis. Daily price-change charts can include AlphaVantage index symbols, such as `SPX`, alongside stock tickers when those symbols appear in `watchlists.json`.
 
 This file describes the metrics graphed by `Comparisons.py`, how they are calculated in this project, and how to read higher or lower values.
 
@@ -193,36 +193,42 @@ The time series daily comparison figure plots:
 - X-axis: `date`
 - Y-axis: `close_change_perc`
 
-This chart compares stock price performance over the same recent window used for valuation charts, currently about two years.
+This chart compares stock and index price performance over the same recent window used for valuation charts, currently about two years.
 
-In this project, `TimeSeriesDaily.get_time_series_daily_adjusted()` requests AlphaVantage `TIME_SERIES_DAILY_ADJUSTED` data with delayed entitlement, saves successful responses to `data/<TICKER>/TIME_SERIES_DAILY_ADJUSTED.json`, and falls back to that saved file if the request does not return `Time Series (Daily)`.
+In this project, `TimeSeriesDaily.get_time_series_daily_adjusted()` requests AlphaVantage `TIME_SERIES_DAILY_ADJUSTED` data with delayed entitlement for stock tickers, saves successful responses to `data/<TICKER>/TIME_SERIES_DAILY_ADJUSTED.json`, and falls back to that saved file if the request does not return `Time Series (Daily)`.
+
+For index symbols, `IndexData.get_index_time_series_daily()` requests AlphaVantage `INDEX_DATA` daily rows and returns filtered daily OHLC data. Index symbols are identified from the AlphaVantage index catalog loaded by `IndexData.get_index_list()`.
 
 `Comparisons.py` filters the returned daily rows to the requested date range, sorts them by date, then calculates `close_change_perc` from the first close value in that filtered range:
 
 ```text
 initial_close_value = first close in selected date range
-close_change_perc = (close - initial_close_value) / close
+close_change_perc = (close - initial_close_value) / initial_close_value
 ```
 
 How to interpret it:
 
-- Positive values mean the stock's close is above the starting close for the selected range.
-- Negative values mean the stock's close is below the starting close for the selected range.
+- Positive values mean the symbol's close is above the starting close for the selected range.
+- Negative values mean the symbol's close is below the starting close for the selected range.
 - A line that rises faster than peers shows stronger price appreciation over the selected range.
+- Index lines provide market or benchmark context and are not included in operational, valuation, or score outputs.
 - This graph is market-price performance only. It is not part of the quality, growth, valuation, risk, or total score.
 - Price change should be read alongside business and valuation metrics. A rising stock can become expensive, and a falling stock can reflect either opportunity or deteriorating fundamentals.
 
 ## Printed Rankings
 
-`Comparisons.py` also prints watchlist tables ranked two ways:
+`Comparisons.py` prints each watchlist's stock rows ranked by greatest `ttm_roic`, then calculates the scored watchlist table. Index symbols are excluded from the printed operational and valuation rankings because they do not have company fundamentals.
 
-- Greatest `ttm_roic`: favors higher business returns.
-- Lowest `pe_ttm`: favors lower earnings multiples.
+The scored output includes:
 
-The script also calculates `ROIC_EV_SCORE` in the printed comparison table:
+- `quality_score`
+- `growth_score`
+- `valuation_score`
+- `risk_score`
+- `total_score`
+- `quality_coverage`
+- `valuation_coverage`
+- `history_coverage`
+- `classification`
 
-```text
-ROIC_EV_SCORE = ttm_roic / ev_ebit
-```
-
-Higher is generally better for this score because it combines higher business returns with a lower EV/EBIT multiple. Treat it as a rough screen only. It can overstate companies with temporarily high ROIC, temporarily low EV/EBIT, cyclical earnings, or stale data.
+Scores are percentile ranks within the current watchlist. They are useful for relative screening, not as absolute market ratings.
