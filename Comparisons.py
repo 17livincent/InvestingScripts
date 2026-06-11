@@ -5,6 +5,7 @@ from OperationalMetrics import get_latest_operational_metrics
 from ValuationMetrics import get_latest_valuation
 from TickerData import TableOperationalMetrics, TableValuationMetrics, add_update_ticker
 from TimeSeriesDaily import get_time_series_daily_adjusted
+from IndexData import get_index_time_series_daily
 from DBConnection import get_db_connection
 from IndexData import get_index_list
 import pandas as pd
@@ -156,6 +157,7 @@ def create_graph_figures(title, figure_def, df_comparison, df_data):
             except KeyError as e:
                 print("WARNING key {} missing from {} for {}.".format(graph_x_y['y'], ticker_calculated.columns, ticker_name))
                 print(e)
+                assert(0)
 
         ax[row,col].set_xlabel(graph_x_y['x'])
         ax[row,col].set_ylabel(graph_x_y['y'])
@@ -182,13 +184,13 @@ def post_process_time_series_daily_adj(df_time_series_daily_adj):
     df_time_series_daily_adj['close_change_perc'] = (df_time_series_daily_adj['close'] - initial_close_value) / df_time_series_daily_adj['close']
 
 def get_unique_tickers_in_watchlist_array(watchlists_json):
-    all_tickers = []
+    all_tickers_indeces = []
     for watchlist_tickers in [watchlists_json[watchlist_name] for watchlist_name in watchlists_json]:
-        all_tickers.extend(watchlist_tickers)
-    all_tickers.sort()
-    all_tickers = list(set(all_tickers))
+        all_tickers_indeces.extend(watchlist_tickers)
+    all_tickers_indeces.sort()
+    all_tickers_indeces = list(set(all_tickers_indeces))
 
-    return all_tickers
+    return all_tickers_indeces
 
 def get_recent_window(df_data, years):
     df_recent_window = df_data.iloc[0:0]
@@ -344,15 +346,17 @@ def main():
         watchlists_json = json.load(watchlists_file)
         print(watchlists_json)
 
-        all_tickers = get_unique_tickers_in_watchlist_array(watchlists_json)
-        print('Unique tickers and indeces: {}'.format(all_tickers))
+        all_tickers_indeces = get_unique_tickers_in_watchlist_array(watchlists_json)
+        print('Unique tickers and indeces: {}'.format(all_tickers_indeces))
 
         index_list = get_index_list()
 
         df_calculated_all = {}
         comparison_rows = []
 
-        for ticker in [ticker for ticker in all_tickers if ticker not in index_list.items()]:
+        time_series_start_time = datetime.now(timezone.utc) - timedelta(weeks=VALUATION_TIME_FRAME_WEEKS)
+
+        for ticker in [ticker for ticker in all_tickers_indeces if ticker not in list(index_list)]:
             try:
                 add_update_ticker(ticker, db_connection)
 
@@ -365,6 +369,9 @@ def main():
 
                 df_time_series_daily_adjusted = get_time_series_daily_adjusted(ticker,
                                                                                datetime.now(timezone.utc) - timedelta(weeks=VALUATION_TIME_FRAME_WEEKS))
+
+                if time_series_start_time < df_time_series_daily_adjusted['date'].iloc[0]:
+                    time_series_start_time = df_time_series_daily_adjusted['date'].iloc[0]
 
                 # Some post-processing
                 post_process_valuation_metrics(df_valuation_metrics)
@@ -391,29 +398,41 @@ def main():
                 print(e)
                 print(ticker)
 
+        # Get time series daily of any indeces.
+        for index in [index for index in all_tickers_indeces if index in list(index_list)]:
+            df_index_time_series_daily = get_index_time_series_daily(index, time_series_start_time)
+            post_process_time_series_daily_adj(df_index_time_series_daily)
+            df_calculated_all[index] = {'operational_metrics': pd.DataFrame(),
+                                        'valuation_metrics': pd.DataFrame(),
+                                        'ev_ebit_ttm_roic': pd.DataFrame(),
+                                        'time_series_daily_adj': df_index_time_series_daily}
+
         if comparison_rows:
             df_comparison = pd.DataFrame(comparison_rows)
             df_comparison = df_comparison.sort_values(by='ttm_roic', ascending=False)
             print(watchlists_json)
 
             for watchlist_name in watchlists_json:
-                watchlist_tickers = watchlists_json[watchlist_name]
+                watchlist_tickers_indices = watchlists_json[watchlist_name]
 
-                if watchlist_tickers:
-                    df_watchlist_comparison = df_comparison.loc[df_comparison['ticker'].isin(watchlist_tickers)]
+                if watchlist_tickers_indices:
+                    df_watchlist_comparison = df_comparison.loc[df_comparison['ticker'].isin(watchlist_tickers_indices)]
 
                     if not df_watchlist_comparison.empty:
                         watchlist_calculated = {key: df_calculated_all[key] for key in watchlists_json[watchlist_name] if key in df_calculated_all}
-                        # plt.style.use('dark_background')
+                        watchlist_calculated_tickers = {key: watchlist_calculated[key] for key in watchlist_calculated if key not in list(index_list)}
+
+                        watchlist_tickers = [ticker for ticker in watchlist_tickers_indices if ticker not in list(index_list)]
+                        df_watchlist_ticker_comparison = df_watchlist_comparison[~df_watchlist_comparison['ticker'].isin(list(index_list))]
 
                         create_graph_figures('{} {}'.format(watchlist_name, operational_figure['title']),
                                              operational_figure,
-                                             df_watchlist_comparison,
-                                             watchlist_calculated)
+                                             df_watchlist_ticker_comparison,
+                                             watchlist_calculated_tickers)
                         create_graph_figures('{} {}'.format(watchlist_name, valuation_figure['title']),
                                             valuation_figure,
-                                            df_watchlist_comparison,
-                                            watchlist_calculated)
+                                            df_watchlist_ticker_comparison,
+                                            watchlist_calculated_tickers)
                         create_graph_figures('{} {}'.format(watchlist_name, time_series_figure['title']),
                                              time_series_figure,
                                              df_watchlist_comparison,
@@ -421,11 +440,11 @@ def main():
 
                         print('\r\n\r\n{} : {}'.format(watchlist_name, watchlist_tickers))
                         print('Rank by greatest {}:'.format('ttm_roic'))
-                        print(df_watchlist_comparison.to_string())
+                        print(df_watchlist_ticker_comparison.to_string())
 
-                        df_watchlist_comparison = get_scores(df_watchlist_comparison)
+                        df_watchlist_ticker_comparison = get_scores(df_watchlist_ticker_comparison)
 
-                        df_watchlist_comparison.to_json('data/{}_Comparison.json'.format(watchlist_name), orient='records', indent=4)
+                        df_watchlist_ticker_comparison.to_json('data/{}_Comparison.json'.format(watchlist_name), orient='records', indent=4)
 
 if __name__ == "__main__":
     main()

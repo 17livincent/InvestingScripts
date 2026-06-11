@@ -1,11 +1,13 @@
 {
     "Watchlist": [
+        "SPX",
         "MA",
         "V",
         "APH",
         "DELL"
     ],
     "Semiconductors": [
+        "SPX",
         "MU",
         "SNDK",
         "NVDA",
@@ -13,6 +15,7 @@
         "AVGO"
     ],
     "Software": [
+        "SPX",
         "PLTR",
         "TEAM",
         "CRWD",
@@ -21,11 +24,13 @@
         "MSFT"
     ],
     "Industrials": [
+        "SPX",
         "APH",
         "GE",
         "ETN"
     ],
     "AI Energy": [
+        "SPX",
         "BE",
         "OKLO",
         "VST",
@@ -33,11 +38,13 @@
         "VRT"
     ],
     "Financial Services": [
+        "SPX",
         "JPM",
         "BAC",
         "C"
     ],
     "Consumer Credit": [
+        "SPX",
         "SYF",
         "BFH",
         "COF",

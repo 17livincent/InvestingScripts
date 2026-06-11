@@ -43,16 +43,19 @@ def get_index_time_series_daily(index_symbol, minimum_date:datetime):
         df_index_data['date'] = [data['date'] for data in data_json['data']
                                  if data['date'] >= minimum_date]
 
-        df_index_data['open'] = [data['open'] for data in data_json['data']
+        df_index_data['open'] = [float(data['open']) for data in data_json['data']
                                  if data['date'] >= minimum_date]
 
-        df_index_data['high'] = [data['high'] for data in data_json['data']
+        df_index_data['high'] = [float(data['high']) for data in data_json['data']
                                  if data['date'] >= minimum_date]
 
-        df_index_data['low'] = [data['low'] for data in data_json['data']
+        df_index_data['low'] = [float(data['low']) for data in data_json['data']
                                 if data['date'] >= minimum_date]
 
-        df_index_data['close'] = [data['close'] for data in data_json['data']
+        df_index_data['close'] = [float(data['close']) for data in data_json['data']
                                   if data['date'] >= minimum_date]
+
+        df_index_data['date'] = pd.to_datetime(df_index_data['date'], utc=True)
+        df_index_data = df_index_data.sort_values('date')
 
     return df_index_data
