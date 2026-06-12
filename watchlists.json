@@ -13,6 +13,9 @@
         "NVDA",
         "AMD",
         "AVGO",
+        "MRVL",
+        "ARM",
+        "QCOM",
         "TSM",
         "ASML"
     ],
@@ -23,7 +26,8 @@
         "CRWD",
         "GTLB",
         "NOW",
-        "MSFT"
+        "MSFT",
+        "ANET"
     ],
     "Industrials": [
         "SPX",
@@ -31,13 +35,16 @@
         "GE",
         "ETN"
     ],
-    "AI Energy": [
+    "AI Infra and Grid": [
         "SPX",
-        "BE",
-        "OKLO",
-        "VST",
+        "PWR",
+        "CEG",
+        "ANET",
         "TLN",
-        "VRT"
+        "VRT",
+        "VST",
+        "ETN",
+        "GE"
     ],
     "Financial Services": [
         "SPX",
