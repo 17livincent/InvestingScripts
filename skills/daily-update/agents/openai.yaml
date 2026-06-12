@@ -1,0 +1,4 @@
+interface:
+  display_name: "Daily Update"
+  short_description: "Run and summarize InvestingScripts watchlists"
+  default_prompt: "Use $daily-update to refresh my InvestingScripts data and give me a watchlist rundown."
