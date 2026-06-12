@@ -25,7 +25,7 @@ Use this skill to handle the daily InvestingScripts workflow: run the comparison
 
 ## Running Updates
 
-Run the update script when the user asks for a daily update or refreshed comparison data.
+Run the update script when the user asks for a daily update or refreshed comparison data.  A daily update may be requested multiple times in a day, given watchlist changes or script changes.
 
 Use:
 
