@@ -30,7 +30,7 @@ import pandas as pd
 from datetime import datetime, timezone, date
 import argparse
 
-SAVED_JSON_PATH = 'data/{}/{}.json'
+SAVED_JSON_PATH = 'data/AlphaVantage/{}/{}.json'
 
 OVERVIEW_FUNCTION_NAME = 'OVERVIEW'
 BALANCE_SHEET_FUNCTION_NAME = 'BALANCE_SHEET'
@@ -125,7 +125,7 @@ class TableCompanies():
         # time.sleep(1)
 
         if 'Symbol' in overview_json:
-            Path('data/{}'.format(ticker_name)).mkdir(exist_ok=True)
+            Path('data/AlphaVantage/{}'.format(ticker_name)).mkdir(exist_ok=True)
             with open(overview_path, 'w') as export_json_file:
                 json.dump(overview_json, export_json_file, indent=4)
         else:
@@ -242,7 +242,7 @@ class TableFundamentals():
             function_json = request_data(function_name, ticker_name)
             # time.sleep(1)
             if 'symbol' in function_json:
-                Path('data/{}'.format(ticker_name)).mkdir(exist_ok=True)
+                Path('data/AlphaVantage/{}'.format(ticker_name)).mkdir(exist_ok=True)
                 with open(function_path, 'w') as export_json_file:
                     json.dump(function_json, export_json_file, indent=4)
             else:
@@ -385,7 +385,7 @@ class TableSharesOutstanding():
         function_json = request_data(SHARES_OUTSTANDING_FUNCTION_NAME, ticker_name)
         # time.sleep(1)
         if 'symbol' in function_json:
-            Path('data/{}'.format(ticker_name)).mkdir(exist_ok=True)
+            Path('data/AlphaVantage/{}'.format(ticker_name)).mkdir(exist_ok=True)
             with open(function_path, 'w') as export_json_file:
                 json.dump(function_json, export_json_file, indent=4)
         else:
@@ -459,7 +459,7 @@ class TablePricesWeekly():
         function_json = request_data(PRICES_WEEKLY_FUNCTION_NAME, ticker_name)
         # time.sleep(1)
         if 'Weekly Adjusted Time Series' in function_json:
-            Path('data/{}'.format(ticker_name)).mkdir(exist_ok=True)
+            Path('data/AlphaVantage/{}'.format(ticker_name)).mkdir(exist_ok=True)
             with open(function_path, 'w') as export_json_file:
                 json.dump(function_json, export_json_file, indent=4)
         else:

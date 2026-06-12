@@ -85,8 +85,8 @@ def request_and_save_json(function, symbol):
     data = request_data(function, symbol)
 
     if data and 'Information' not in data:
-        Path('data/{}'.format(symbol)).mkdir(exist_ok=True)
-        with open('data/{}/{}.json'.format(symbol, function), 'w') as export_json_file:
+        Path('data/AlphaVantage/{}'.format(symbol)).mkdir(exist_ok=True)
+        with open('data/AlphaVantage/{}/{}.json'.format(symbol, function), 'w') as export_json_file:
             json.dump(data, export_json_file, indent=4)
     else:
         print("WARNING: received for {}:\r\n{}".format(function, data))

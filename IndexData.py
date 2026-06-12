@@ -11,14 +11,14 @@ def request_index_list():
     data_json = request_index_catalog()
 
     if data_json:
-        with open('data/INDEX_CATALOG.json', 'w') as export_json_file:
+        with open('data/AlphaVantage/INDEX_CATALOG.json', 'w') as export_json_file:
             json.dump(data_json, export_json_file, indent=4)
     return data_json
 
 def get_index_list():
     index_list_dict = {}
     try:
-        with open('data/INDEX_CATALOG.json', 'r') as json_file:
+        with open('data/AlphaVantage/INDEX_CATALOG.json', 'r') as json_file:
             index_list_dict = json.load(json_file)
     except FileNotFoundError as e:
         print(e)

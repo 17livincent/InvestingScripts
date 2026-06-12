@@ -9,7 +9,7 @@ import sys
 
 def get_shares_outstanding(ticker):
     rows_list = []
-    with open('data/{}/SHARES_OUTSTANDING.json'.format(ticker)) as shares_outstanding_json:
+    with open('data/AlphaVantage/{}/SHARES_OUTSTANDING.json'.format(ticker)) as shares_outstanding_json:
         shares_outstanding = json.load(shares_outstanding_json)
         for item in shares_outstanding['data']:
             rows_list.append({'date': item['date'],
@@ -24,7 +24,7 @@ def get_shares_outstanding(ticker):
 
 def get_timeseries_weekly_adjusted(ticker):
     rows_list = []
-    with open('data/{}/TIME_SERIES_WEEKLY_ADJUSTED.json'.format(ticker)) as weekly_stock_json:
+    with open('data/AlphaVantage/{}/TIME_SERIES_WEEKLY_ADJUSTED.json'.format(ticker)) as weekly_stock_json:
         weekly_stock = json.load(weekly_stock_json)
         for item in weekly_stock['Weekly Adjusted Time Series'].keys():
             rows_list.append({'date': item,

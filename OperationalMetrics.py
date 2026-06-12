@@ -10,8 +10,6 @@ import numpy as np
 import argparse
 import matplotlib.pyplot as plt
 
-CALCULATED_FUNDAMENTALS_PATH = 'data/{}/calculated_fundamentals.csv'
-
 def compute_ttm(series):
     return series.rolling(4).sum()
 
@@ -21,7 +19,7 @@ def safe_divide(a, b):
 def get_saved_balance_sheet(ticker):
     df_data_balance_sheet = pd.DataFrame()
 
-    with open('data/{}/BALANCE_SHEET.json'.format(ticker)) as balance_sheet_json:
+    with open('data/AlphaVantage/{}/BALANCE_SHEET.json'.format(ticker)) as balance_sheet_json:
         balance_sheet = json.load(balance_sheet_json)
         df_data_balance_sheet['date'] = [quarterly_report['fiscalDateEnding'] for
                                             quarterly_report in balance_sheet['quarterlyReports']]
@@ -37,7 +35,7 @@ def get_saved_balance_sheet(ticker):
 def get_saved_cash_flow(ticker):
     df_cash_flow = pd.DataFrame()
 
-    with open('data/{}/CASH_FLOW.json'.format(ticker)) as cash_flow_json:
+    with open('data/AlphaVantage/{}/CASH_FLOW.json'.format(ticker)) as cash_flow_json:
         cash_flow = json.load(cash_flow_json)
         df_cash_flow['date'] = [quarterly_report['fiscalDateEnding'] for
                                          quarterly_report in cash_flow['quarterlyReports']]
@@ -51,7 +49,7 @@ def get_saved_cash_flow(ticker):
 def get_saved_income_statement(ticker):
     df_data_income_statement = pd.DataFrame()
 
-    with open('data/{}/INCOME_STATEMENT.json'.format(ticker)) as income_statement_json:
+    with open('data/AlphaVantage/{}/INCOME_STATEMENT.json'.format(ticker)) as income_statement_json:
         income_statement = json.load(income_statement_json)
         df_data_income_statement['date'] = [quarterly_report['fiscalDateEnding'] for
                                             quarterly_report in income_statement['quarterlyReports']]

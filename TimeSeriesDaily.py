@@ -21,11 +21,11 @@ def get_time_series_daily_adjusted(ticker_name, minimum_date:datetime):
                          'entitlement': 'delayed'})
 
     if 'Time Series (Daily)' in data:
-        Path('data/{}'.format(ticker_name)).mkdir(exist_ok=True)
+        Path('data/AlphaVantage/{}'.format(ticker_name)).mkdir(exist_ok=True)
         with open(function_path, 'w') as export_json_file:
             json.dump(data, export_json_file, indent=4)
     else:
-        with open('data/{}/TIME_SERIES_DAILY_ADJUSTED.json'.format(ticker_name)) as daily_json:
+        with open('data/AlphaVantage/{}/TIME_SERIES_DAILY_ADJUSTED.json'.format(ticker_name)) as daily_json:
             data = json.load(daily_json)
 
     df_time_series_daily['date'] = [daily for
