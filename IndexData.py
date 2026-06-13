@@ -6,6 +6,7 @@ from RequestAndSave import request_index_catalog, request_data
 import json
 from datetime import datetime
 import pandas as pd
+from pathlib import Path
 
 def request_index_list():
     data_json = request_index_catalog()
@@ -18,6 +19,7 @@ def request_index_list():
 def get_index_list():
     index_list_dict = {}
     try:
+        Path('data/AlphaVantage').mkdir(exist_ok=True)
         with open('data/AlphaVantage/INDEX_CATALOG.json', 'r') as json_file:
             index_list_dict = json.load(json_file)
     except FileNotFoundError as e:
