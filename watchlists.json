@@ -1,6 +1,7 @@
 {
     "Watchlist": [
         "SPX",
+        "NDX",
         "MA",
         "V",
         "APH",
@@ -8,6 +9,7 @@
     ],
     "Semiconductors": [
         "SPX",
+        "NDX",
         "MU",
         "SNDK",
         "NVDA",
@@ -16,27 +18,42 @@
         "MRVL",
         "ARM",
         "QCOM",
+        "TXN",
+        "KLAC",
+        "LRCX",
+        "ADI",
         "TSM",
         "ASML"
     ],
     "Software": [
         "SPX",
+        "NDX",
         "PLTR",
         "TEAM",
         "CRWD",
         "GTLB",
         "NOW",
         "MSFT",
-        "ANET"
+        "ANET",
+        "APP",
+        "ADBE",
+        "CRM",
+        "INTU",
+        "DDOG"
     ],
     "Industrials": [
         "SPX",
+        "NDX",
         "APH",
         "GE",
-        "ETN"
+        "ETN",
+        "HON",
+        "PH",
+        "ROK"
     ],
     "AI Infra and Grid": [
         "SPX",
+        "NDX",
         "PWR",
         "CEG",
         "ANET",
@@ -44,20 +61,32 @@
         "VRT",
         "VST",
         "ETN",
-        "GE"
+        "GE",
+        "GEV",
+        "FIX"
     ],
     "Financial Services": [
         "SPX",
+        "NDX",
         "JPM",
         "BAC",
-        "C"
+        "C",
+        "SCHW"
     ],
     "Consumer Credit": [
         "SPX",
+        "NDX",
         "SYF",
         "BFH",
         "COF",
         "ALLY",
         "AXP"
+    ],
+    "Healthcare Quality": [
+        "SPX",
+        "NDX",
+        "TMO",
+        "DHR",
+        "BSX"
     ]
 }
