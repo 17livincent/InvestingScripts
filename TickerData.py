@@ -228,7 +228,7 @@ class TableFundamentals():
                 print('Added {} for {}.'.format(TABLE_NAME_FUNDAMENTALS, ticker_name))
         DataUpdates.add_data_update(ticker_name, TABLE_NAME_FUNDAMENTALS, db_connection)
 
-    def update(ticker_name, db_connection):
+    def update(ticker_name, db_connection, minimum_date:datetime = None):
         """
             Pull BALANCE_SHEET, CASH_FLOW, and INCOME_STATMENT from AlphaVantage.
             Write them to local JSON files and push the new dataframe rows
@@ -257,7 +257,7 @@ class TableFundamentals():
                                             params={"ticker_name": ticker_name},
                                             con=db_connection)
         if df_latest_date['max'].iloc[0] == None:
-            pass
+            df_fundamentals = df_fundamentals[df_fundamentals['date'] >= minimum_date]
         else:
             latest_date = pd.to_datetime(df_latest_date['max']).iloc[0]
             df_fundamentals = df_fundamentals[df_fundamentals['date'] > latest_date]
@@ -376,7 +376,7 @@ class TableSharesOutstanding():
                 connection.execute(insert_statement, data_dicts)
         DataUpdates.add_data_update(ticker_name, TABLE_NAME_SHARES_OUTSTANDING, db_connection)
 
-    def update(ticker_name, db_connection):
+    def update(ticker_name, db_connection, minimum_date:datetime = None):
         """
             Pull SHARES_OUTSTANDING from AlphaVantage.
             Write them to a local JSON file and push the new dataframe rows to 'shares_outstanding'.
@@ -398,7 +398,7 @@ class TableSharesOutstanding():
                                             params={"ticker_name": ticker_name},
                                             con=db_connection)
         if df_latest_date['max'].iloc[0] == None:
-            pass
+            df_shares_outstanding = df_shares_outstanding[df_shares_outstanding['date'] >= minimum_date]
         else:
             latest_date = pd.to_datetime(df_latest_date['max']).iloc[0]
             df_shares_outstanding = df_shares_outstanding[df_shares_outstanding['date'] > latest_date]
@@ -450,7 +450,7 @@ class TablePricesWeekly():
                 connection.execute(insert_statement, data_dicts)
         DataUpdates.add_data_update(ticker_name, TABLE_NAME_PRICES_WEEKLY, db_connection)
 
-    def update(ticker_name, db_connection):
+    def update(ticker_name, db_connection, minimum_date:datetime = None):
         """
             Pull TIMER_SERIES_WEEKLY_ADJUSTED from AlphaVantage.
             Write them to a local JSON file and push the new dataframe rows to 'prices_weekly'.
@@ -472,7 +472,7 @@ class TablePricesWeekly():
                                             params={"ticker_name": ticker_name},
                                             con=db_connection)
         if df_latest_date['max'].iloc[0] == None:
-            pass
+            df_prices_weekly = df_prices_weekly[df_prices_weekly['date'] >= minimum_date]
         else:
             latest_date = pd.to_datetime(df_latest_date['max']).iloc[0]
             df_prices_weekly = df_prices_weekly[df_prices_weekly['date'] > latest_date]
@@ -551,7 +551,7 @@ class TableValuationMetrics():
             df_valuation_metrics = df_valuation_metrics[df_valuation_metrics['date'] > minimum_date]
         TableValuationMetrics.append(ticker_name, df_valuation_metrics, db_connection)
 
-def add_update_ticker(ticker_name, db_connection):
+def add_update_ticker(ticker_name, db_connection, minimum_date:datetime = None):
     """
         Add and/or update DB data of the given ticker.
     """
@@ -575,7 +575,7 @@ def add_update_ticker(ticker_name, db_connection):
     (DataUpdates.check_needs_update(TABLE_NAME_OPERATIONAL_METRICS,
                                     last_update_operational_metrics) == True)):
         try:
-            TableFundamentals.update(ticker_name, db_connection)
+            TableFundamentals.update(ticker_name, db_connection, minimum_date)
             TableOperationalMetrics.update(ticker_name, db_connection)
             need_to_update_valuation_metrics = True
         except FileNotFoundError as e:
@@ -589,7 +589,7 @@ def add_update_ticker(ticker_name, db_connection):
     needs_updated = DataUpdates.check_needs_update(TABLE_NAME_SHARES_OUTSTANDING, last_update)
     if(needs_updated == True):
         try:
-            TableSharesOutstanding.update(ticker_name, db_connection)
+            TableSharesOutstanding.update(ticker_name, db_connection, minimum_date)
             need_to_update_valuation_metrics = True
         except FileNotFoundError as e:
             print(e)
@@ -600,7 +600,7 @@ def add_update_ticker(ticker_name, db_connection):
     needs_updated = DataUpdates.check_needs_update(TABLE_NAME_PRICES_WEEKLY, last_update)
     if(needs_updated == True):
         try:
-            TablePricesWeekly.update(ticker_name, db_connection)
+            TablePricesWeekly.update(ticker_name, db_connection, minimum_date)
             need_to_update_valuation_metrics = True
         except FileNotFoundError as e:
             print(e)

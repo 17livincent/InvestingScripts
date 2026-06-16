@@ -349,16 +349,6 @@ def get_scores(df_watchlist_comparison):
     df_watchlist_comparison_clean['classification'] = df_watchlist_comparison_clean.apply(get_score_classification, axis=1)
 
     df_watchlist_comparison_clean = df_watchlist_comparison_clean.sort_values(by='total_score', ascending=False)
-    print(df_watchlist_comparison_clean[['ticker',
-                                         'quality_score',
-                                         'growth_score',
-                                         'valuation_score',
-                                         'risk_score',
-                                         'total_score',
-                                         'quality_coverage',
-                                         'valuation_coverage',
-                                         'history_coverage',
-                                         'classification']].to_string())
 
     return df_watchlist_comparison_clean
 
@@ -386,7 +376,7 @@ def main():
 
         for ticker in stock_tickers:
             try:
-                add_update_ticker(ticker, db_connection)
+                add_update_ticker(ticker, db_connection, run_time - timedelta(weeks=52*7))
 
                 df_operational_metrics = TableOperationalMetrics.get_from(ticker,
                                                                           db_connection,
@@ -465,10 +455,21 @@ def main():
                                          watchlist_calculated_stocks)
 
                     print('\r\n\r\n{} : {}'.format(watchlist_name, watchlist_stock_tickers))
-                    print('Rank by greatest {}:'.format('ttm_roic'))
-                    print(df_watchlist_stock_comparison.to_string())
+                    # print('Rank by greatest {}:'.format('ttm_roic'))
+                    # print(df_watchlist_stock_comparison.to_string())
 
                     df_watchlist_stock_comparison = get_scores(df_watchlist_stock_comparison)
+                    print(df_watchlist_stock_comparison[['ticker',
+                                                         'ttm_roic',
+                                                         'quality_score',
+                                                         'growth_score',
+                                                         'valuation_score',
+                                                         'risk_score',
+                                                         'total_score',
+                                                         'quality_coverage',
+                                                         'valuation_coverage',
+                                                         'history_coverage',
+                                                         'classification']].to_string())
 
                     df_watchlist_stock_comparison.to_json('data/{}_Comparison.json'.format(watchlist_name), orient='records', indent=4)
 
