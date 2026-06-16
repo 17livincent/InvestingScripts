@@ -48,6 +48,12 @@ RECENCY = {
     'valuation_metrics': 'week'
 }
 
+def get_naive_datetime(datetime_value):
+    if datetime_value is None:
+        return None
+
+    return pd.to_datetime(datetime_value).tz_localize(None)
+
 class DataUpdates():
     @staticmethod
     def get_all_last_updates(ticker_name, db_connection):
@@ -257,7 +263,9 @@ class TableFundamentals():
                                             params={"ticker_name": ticker_name},
                                             con=db_connection)
         if df_latest_date['max'].iloc[0] == None:
-            df_fundamentals = df_fundamentals[df_fundamentals['date'] >= minimum_date]
+            minimum_date = get_naive_datetime(minimum_date)
+            if minimum_date is not None:
+                df_fundamentals = df_fundamentals[df_fundamentals['date'] >= minimum_date]
         else:
             latest_date = pd.to_datetime(df_latest_date['max']).iloc[0]
             df_fundamentals = df_fundamentals[df_fundamentals['date'] > latest_date]
@@ -398,7 +406,9 @@ class TableSharesOutstanding():
                                             params={"ticker_name": ticker_name},
                                             con=db_connection)
         if df_latest_date['max'].iloc[0] == None:
-            df_shares_outstanding = df_shares_outstanding[df_shares_outstanding['date'] >= minimum_date]
+            minimum_date = get_naive_datetime(minimum_date)
+            if minimum_date is not None:
+                df_shares_outstanding = df_shares_outstanding[df_shares_outstanding['date'] >= minimum_date]
         else:
             latest_date = pd.to_datetime(df_latest_date['max']).iloc[0]
             df_shares_outstanding = df_shares_outstanding[df_shares_outstanding['date'] > latest_date]
@@ -472,7 +482,9 @@ class TablePricesWeekly():
                                             params={"ticker_name": ticker_name},
                                             con=db_connection)
         if df_latest_date['max'].iloc[0] == None:
-            df_prices_weekly = df_prices_weekly[df_prices_weekly['date'] >= minimum_date]
+            minimum_date = get_naive_datetime(minimum_date)
+            if minimum_date is not None:
+                df_prices_weekly = df_prices_weekly[df_prices_weekly['date'] >= minimum_date]
         else:
             latest_date = pd.to_datetime(df_latest_date['max']).iloc[0]
             df_prices_weekly = df_prices_weekly[df_prices_weekly['date'] > latest_date]
