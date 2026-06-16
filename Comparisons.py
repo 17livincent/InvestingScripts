@@ -12,6 +12,7 @@ import matplotlib.pyplot as plt
 from matplotlib.ticker import PercentFormatter
 from datetime import datetime, timedelta, timezone
 import json
+import math
 
 OPERATIONAL_TIME_FRAME_WEEKS = 52*6
 VALUATION_TIME_FRAME_WEEKS = 52*2
@@ -127,18 +128,25 @@ TOTAL_SCORE_WEIGHTS = {
 
 def create_graph_figures(title, figure_def, df_comparison, df_data):
     graphs = figure_def['graphs']
-    num_rows = figure_def['rows']
-    num_cols = figure_def['cols']
+    graph_count = len(graphs)
+
+    if graph_count == 0:
+        print("WARNING: no graphs requested for {}.".format(title))
+        return
+
+    num_cols = min(2, graph_count)
+    num_rows = math.ceil(graph_count / num_cols)
 
     top_ttm_roic = None
     if not df_comparison.empty and 'ticker' in df_comparison.columns:
         top_ttm_roic = df_comparison.iloc[0]['ticker']
 
-    fig, ax = plt.subplots(num_rows, num_cols, figsize=(18, 12))
+    fig, ax = plt.subplots(num_rows, num_cols, figsize=(9 * num_cols, 6 * num_rows))
+    axes = [ax] if graph_count == 1 else ax.flatten()
 
     for graph_num, graph_x_y in enumerate(graphs):
-        row, col = divmod(graph_num, num_cols)
-        ax[row,col].set_title('{} to {}'.format(graph_x_y['y'], graph_x_y['x']))
+        graph_ax = axes[graph_num]
+        graph_ax.set_title('{} to {}'.format(graph_x_y['y'], graph_x_y['x']))
 
         for ticker_name in df_data:
             ticker_calculated = df_data[ticker_name][graph_x_y['table']]
@@ -156,27 +164,30 @@ def create_graph_figures(title, figure_def, df_comparison, df_data):
                 continue
 
             if graph_x_y['type'] == 'line':
-                ax[row,col].plot(ticker_calculated[graph_x_y['x']],
-                                 ticker_calculated[graph_x_y['y']],
-                                 label=ticker_name,
-                                 linewidth=(3 if ticker_name == top_ttm_roic else 1.5))
+                graph_ax.plot(ticker_calculated[graph_x_y['x']],
+                              ticker_calculated[graph_x_y['y']],
+                              label=ticker_name,
+                              linewidth=(3 if ticker_name == top_ttm_roic else 1.5))
             elif graph_x_y['type'] == 'scatter':
-                ax[row,col].scatter(ticker_calculated[graph_x_y['x']],
-                                    ticker_calculated[graph_x_y['y']],
-                                    label=ticker_name)
-                ax[row,col].annotate(ticker_name,
-                                     (ticker_calculated[graph_x_y['x']].iloc[0],
-                                      ticker_calculated[graph_x_y['y']].iloc[0]))
+                graph_ax.scatter(ticker_calculated[graph_x_y['x']],
+                                 ticker_calculated[graph_x_y['y']],
+                                 label=ticker_name)
+                graph_ax.annotate(ticker_name,
+                                  (ticker_calculated[graph_x_y['x']].iloc[0],
+                                   ticker_calculated[graph_x_y['y']].iloc[0]))
 
-        ax[row,col].set_xlabel(graph_x_y['x'])
-        ax[row,col].set_ylabel(graph_x_y['y'])
-        handles, labels = ax[row,col].get_legend_handles_labels()
+        graph_ax.set_xlabel(graph_x_y['x'])
+        graph_ax.set_ylabel(graph_x_y['y'])
+        handles, labels = graph_ax.get_legend_handles_labels()
         if handles:
-            ax[row,col].legend(handles, labels, loc='center left', fontsize=8, bbox_to_anchor=(1, 0.5))
+            graph_ax.legend(handles, labels, loc='center left', fontsize=8, bbox_to_anchor=(1, 0.5))
         if graph_x_y['grid'] == True:
-            ax[row,col].grid(True, alpha=0.3)
+            graph_ax.grid(True, alpha=0.3)
         if graph_x_y['percentFormat'] == True:
-            ax[row,col].yaxis.set_major_formatter(PercentFormatter(1.0))
+            graph_ax.yaxis.set_major_formatter(PercentFormatter(1.0))
+
+    for unused_ax in axes[graph_count:]:
+        unused_ax.remove()
 
     fig.suptitle(title, fontsize=24)
     fig.tight_layout()
