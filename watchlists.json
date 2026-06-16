@@ -63,6 +63,7 @@
         "ETN",
         "GE",
         "GEV",
+        "HUBB",
         "FIX"
     ],
     "Financial Services": [
@@ -71,7 +72,10 @@
         "JPM",
         "BAC",
         "C",
-        "SCHW"
+        "SCHW",
+        "GS",
+        "MS",
+        "BLK"
     ],
     "Consumer Credit": [
         "SPX",
@@ -80,11 +84,17 @@
         "BFH",
         "COF",
         "ALLY",
-        "AXP"
+        "AXP",
+        "OMF",
+        "SLM",
+        "ENVA"
     ],
     "Healthcare Quality": [
         "SPX",
         "NDX",
+        "ISRG",
+        "SYK",
+        "ABT",
         "TMO",
         "DHR",
         "BSX"
