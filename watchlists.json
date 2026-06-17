@@ -29,9 +29,6 @@
         "SPX",
         "NDX",
         "PLTR",
-        "TEAM",
-        "CRWD",
-        "GTLB",
         "NOW",
         "MSFT",
         "ANET",
@@ -87,7 +84,8 @@
         "AXP",
         "OMF",
         "SLM",
-        "ENVA"
+        "ENVA",
+        "SOFI"
     ],
     "Healthcare Quality": [
         "SPX",
