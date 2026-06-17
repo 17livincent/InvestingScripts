@@ -1,12 +1,14 @@
 # Comparison Metrics
 
-`Comparisons.py` creates three comparison PNGs for each watchlist in `watchlists.json`:
+`Comparisons.py` creates comparison PNGs for each watchlist in `watchlists.json`:
 
 - `<watchlist> Operational Comparisons.png`
 - `<watchlist> Valuation Comparisons.png`
+- `<watchlist> Valuation Scatters.png`
+- `<watchlist> Risk Comparisons.png`
 - `<watchlist> Time Series Daily Comparisons.png`
 
-Operational charts use about six years of history. Valuation charts and daily price-change charts use about two years of history. Percent-based operational metrics and price changes are shown as percentages on the chart axis. Daily price-change charts can include AlphaVantage index symbols, such as `SPX`, alongside stock tickers when those symbols appear in `watchlists.json`.
+Operational charts use about six years of history. Valuation charts and daily price-change charts use about two years of history. Scatter charts use the latest combined comparison row for each stock. Percent-based operational metrics and price changes are shown as percentages on the chart axis. Daily price-change charts can include AlphaVantage index symbols, such as `SPX`, alongside stock tickers when those symbols appear in `watchlists.json`.
 
 This file describes the metrics graphed by `Comparisons.py`, how they are calculated in this project, and how to read higher or lower values.
 
@@ -168,9 +170,9 @@ How to interpret it:
 - EV/FCF can be misleading when free cash flow is temporarily boosted or depressed by working capital, capital expenditure timing, or one-time cash items.
 - EV/FCF is not calculated when TTM free cash flow is zero or negative.
 
-## Scatter Plot: `ev_ebit` to `ttm_roic`
+## Valuation Scatters: `ev_ebit` to `ttm_roic`
 
-The valuation comparison figure includes a scatter plot with:
+The `Valuation Scatters` figure includes a scatter plot with:
 
 - X-axis: `ev_ebit`
 - Y-axis: `ttm_roic`
@@ -185,6 +187,48 @@ How to interpret it:
 - Lower right is usually least attractive: low ROIC and high EV/EBIT.
 
 The scatter plot should be read as a starting point, not a final ranking. A company with high ROIC can deserve a higher EV/EBIT if its growth and durability are better. A low EV/EBIT company may be cheap for a reason if profits are declining or cyclical.
+
+## Valuation Scatters: `ev_fcf` to `ttm_roic`
+
+The `Valuation Scatters` figure also includes a scatter plot with:
+
+- X-axis: `ev_fcf`
+- Y-axis: `ttm_roic`
+
+This chart compares whole-business market valuation against return on invested capital. It is similar to the EV/EBIT scatter, but uses free cash flow instead of operating income.
+
+How to interpret it:
+
+- Upper left is generally most attractive: high ROIC and low EV/FCF.
+- Upper right can be high quality but expensive: high ROIC and high EV/FCF.
+- Lower left can be statistically cheap but lower quality: low ROIC and low EV/FCF.
+- Lower right is usually least attractive: low ROIC and high EV/FCF.
+
+EV/FCF is useful because free cash flow is the cash left after operating needs and capital expenditures. A company with high ROIC and low EV/FCF may be converting capital into attractive profits while trading at a modest cash-flow valuation. That combination can signal a potentially interesting candidate for deeper review.
+
+Be careful with this scatter when free cash flow is temporarily distorted. Working-capital timing, unusually high or low capital expenditures, acquisitions, customer prepayments, or one-time cash items can make EV/FCF look better or worse than the normalized business. In this project, `ev_fcf` is not calculated when TTM free cash flow is zero or negative, and it is clipped at 200.
+
+## Risk Comparisons: `ttm_roic_3yr_avg` to `ttm_roic_3yr_std`
+
+The `Risk Comparisons` figure includes a scatter plot with:
+
+- X-axis: `ttm_roic_3yr_avg`
+- Y-axis: `ttm_roic_3yr_std`
+
+This chart compares average return on invested capital with the volatility of that return. Both values are calculated from `ttm_roic` observations in the recent three-year window, and a summary is missing unless there are at least `MIN_HISTORY_OBSERVATIONS` valid observations.
+
+How to interpret it:
+
+- Lower right is generally most attractive: high average ROIC with low ROIC volatility.
+- Upper right can be high quality but less predictable: high average ROIC with volatile returns.
+- Lower left is stable but less profitable: low average ROIC with low volatility.
+- Upper left is usually weakest: low average ROIC with high volatility.
+
+`ttm_roic_3yr_avg` shows the recent normalized level of capital productivity. A higher value means the business has generated more after-tax operating profit per dollar of invested capital over the recent history, not just in the latest period.
+
+`ttm_roic_3yr_std` shows how much ROIC has varied around that three-year average. A lower standard deviation suggests more consistent returns, while a higher standard deviation suggests cyclical earnings, margin instability, acquisition effects, data noise, or a business whose economics change meaningfully from period to period.
+
+The best risk profile is usually a company that combines a high `ttm_roic_3yr_avg` with a low `ttm_roic_3yr_std`. That combination means the company has produced strong returns and has done so consistently. A high average ROIC with high volatility can still be attractive, but it needs more context because the latest ROIC may not represent the durable earning power of the business.
 
 ## Price Change Percent Graph: `close_change_perc`
 
