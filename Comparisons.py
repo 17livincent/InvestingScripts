@@ -485,7 +485,7 @@ def main():
                                          valuation_figure,
                                          df_watchlist_stock_comparison,
                                          watchlist_calculated_stocks)
-                    create_graph_figures('{} {}'.format(watchlist_name, valuation_figure['title']),
+                    create_graph_figures('{} {}'.format(watchlist_name, valuation_scatters['title']),
                                          valuation_scatters,
                                          df_watchlist_stock_comparison,
                                          watchlist_calculated_stocks)
