@@ -71,13 +71,20 @@ valuation_graphs = [{'x': 'date',
                      'type': 'line',
                      'percentFormat': False,
                      'grid': True,
-                     'table': 'valuation_metrics'},
-                    {'x': 'ev_ebit',
-                     'y': 'ttm_roic',
-                     'type': 'scatter',
-                     'percentFormat': False,
-                     'grid': True,
-                     'table': 'ev_ebit_ttm_roic'}
+                     'table': 'valuation_metrics'}]
+
+valuation_scatters = [{'x': 'ev_ebit',
+                       'y': 'ttm_roic',
+                       'type': 'scatter',
+                       'percentFormat': False,
+                       'grid': True,
+                       'table': 'combined_comparison'},
+                      {'x': 'ev_fcf',
+                       'y': 'ttm_roic',
+                       'type': 'scatter',
+                       'percentFormat': False,
+                       'grid': True,
+                       'table': 'combined_comparison'}
                     ]
 
 time_series_graphs = [{'x': 'date',
@@ -88,9 +95,31 @@ time_series_graphs = [{'x': 'date',
                        'table': 'time_series_daily_adj'}
                       ]
 
-operational_figure = {'graphs': operational_graphs, 'title': 'Operational Comparisons', 'rows': 2, 'cols': 2}
-valuation_figure = {'graphs': valuation_graphs, 'title': 'Valuation Comparisons', 'rows': 2, 'cols': 2}
-time_series_figure = {'graphs': time_series_graphs, 'title': 'Time Series Daily Comparisons', 'rows': 2, 'cols': 2}
+risk_graphs = [{'x': 'date',
+                'y': 'debt_to_equity',
+                'type': 'line',
+                'percentFormat': False,
+                'grid': True,
+                'table': 'operational_metrics'},
+               {'x': 'ttm_roic_3yr_avg',
+                'y': 'ttm_roic_3yr_std',
+                'type': 'scatter',
+                'percentFormat': False,
+                'grid': True,
+                'table': 'combined_comparison'},
+               {'x': 'date',
+                'y': 'fcf_margin',
+                'type': 'line',
+                'percentFormat': False,
+                'grid': True,
+                'table': 'operational_metrics'}
+                ]
+
+operational_figure = {'graphs': operational_graphs, 'title': 'Operational Comparisons'}
+valuation_figure = {'graphs': valuation_graphs, 'title': 'Valuation Comparisons'}
+valuation_scatters = {'graphs': valuation_scatters, 'title': 'Valuation Scatters'}
+time_series_figure = {'graphs': time_series_graphs, 'title': 'Time Series Daily Comparisons'}
+risk_figure = {'graphs': risk_graphs, 'title': 'Risk Comparisons'}
 
 QUALITY_WEIGHTS = pd.Series({
     'ttm_roic_perc_rank': 0.45,
@@ -236,6 +265,8 @@ def get_metric_summary(df_data, metric, years, aggregate):
 
         if len(metric_values) >= MIN_HISTORY_OBSERVATIONS:
             metric_summary = getattr(metric_values, aggregate)()
+        else:
+            print("WARNING: Not enough instances of {}".format(metric))
 
     return metric_summary
 
@@ -400,11 +431,12 @@ def main():
                 comparison_dict.update(get_trailing_average_metrics(df_operational_metrics, df_valuation_metrics))
 
                 comparison_rows.append(comparison_dict)
-                ev_ebit_ttm_roic = pd.DataFrame([comparison_dict])
+                df_combined_comparison = pd.DataFrame([comparison_dict])
+                df_combined_comparison = df_combined_comparison.dropna()
 
                 df_calculated_all[ticker] = {'operational_metrics': df_operational_metrics,
                                              'valuation_metrics': df_valuation_metrics,
-                                             'ev_ebit_ttm_roic': ev_ebit_ttm_roic,
+                                             'combined_comparison': df_combined_comparison,
                                              'time_series_daily_adj': df_time_series_daily_adjusted}
 
             except FileNotFoundError as e:
@@ -422,7 +454,7 @@ def main():
             post_process_time_series_daily_adj(df_index_time_series_daily)
             df_calculated_all[index_symbol] = {'operational_metrics': pd.DataFrame(),
                                                'valuation_metrics': pd.DataFrame(),
-                                               'ev_ebit_ttm_roic': pd.DataFrame(),
+                                               'combined_comparison': pd.DataFrame(),
                                                'time_series_daily_adj': df_index_time_series_daily}
 
         df_comparison = pd.DataFrame(comparison_rows)
@@ -453,7 +485,14 @@ def main():
                                          valuation_figure,
                                          df_watchlist_stock_comparison,
                                          watchlist_calculated_stocks)
-
+                    create_graph_figures('{} {}'.format(watchlist_name, valuation_figure['title']),
+                                         valuation_scatters,
+                                         df_watchlist_stock_comparison,
+                                         watchlist_calculated_stocks)
+                    create_graph_figures('{} {}'.format(watchlist_name, risk_figure['title']),
+                                         risk_figure,
+                                         df_watchlist_stock_comparison,
+                                         watchlist_calculated_stocks)
                     print('\r\n\r\n{} : {}'.format(watchlist_name, watchlist_stock_tickers))
                     # print('Rank by greatest {}:'.format('ttm_roic'))
                     # print(df_watchlist_stock_comparison.to_string())
