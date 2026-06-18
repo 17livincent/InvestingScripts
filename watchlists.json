@@ -23,7 +23,11 @@
         "LRCX",
         "ADI",
         "TSM",
-        "ASML"
+        "ASML",
+        "INTC",
+        "WDC",
+        "STX",
+        "COHR"
     ],
     "Software": [
         "SPX",
@@ -61,7 +65,10 @@
         "GE",
         "GEV",
         "HUBB",
-        "FIX"
+        "FIX",
+        "CMI",
+        "SEI",
+        "WTS"
     ],
     "Financial Services": [
         "SPX",
@@ -95,6 +102,7 @@
         "ABT",
         "TMO",
         "DHR",
-        "BSX"
+        "BSX",
+        "VCYT"
     ]
 }
