@@ -1,6 +1,6 @@
 ---
 name: daily-update
-description: Run and summarize the InvestingScripts daily stock-watchlist update workflow. Use when the user asks for a daily update, today's data updates, a watchlist rundown, refreshed comparisons, ranked stock candidates, notable changes or trends, generated comparison charts, market/current-event context, or an explanation of the latest `data/*_Comparison.json` outputs in the InvestingScripts repo.
+description: Run and summarize the InvestingScripts daily stock-watchlist update workflow. Use when the user asks for a daily update, today's data updates, a watchlist rundown, refreshed comparisons, ranked stock candidates, notable changes or trends, generated comparison charts, deeper market/current-event context tied to the watchlists, or an explanation of the latest `data/*_Comparison.json` outputs in the InvestingScripts repo.
 ---
 
 # Daily Update
@@ -18,9 +18,9 @@ Use this skill to handle the daily InvestingScripts workflow: run the comparison
 5. Check timestamps for `data/*_Comparison.json` and `data/* Comparisons.png` after the run completes.
 6. Save a daily snapshot only when a daily update was requested.
 7. Compare today's scored outputs to the most recent prior snapshot before today, up to 14 days old.
-8. Inspect generated PNG comparison charts visually and summarize what they show.
-9. Research relevant current events from the last 7 days for the market and for top candidates in each watchlist.
-10. Recommend possible new watchlists or additions to existing watchlists based on market context.
+8. Inspect the resulting metrics/outputs and generated PNG comparison charts visually and summarize what they show.
+9. Research relevant current events from the last 7 days for the market, sectors/themes represented in `watchlists.json`, and top candidates in each watchlist.
+10. Identify relevant peer companies/tickers surfaced by that research that are not tracked in any current watchlist, and use them when recommending possible new watchlists or additions to existing watchlists based on market context.
 11. Do not commit, delete, or regenerate unrelated `data/` artifacts unless the user explicitly asks.
 
 ## Running Updates
@@ -104,6 +104,32 @@ Focus stock-specific news on the top candidates in each watchlist, plus any lowe
 
 Include source links in the final answer when current-event claims are used.
 
+After researching market and sector/theme current events, compare any relevant peer tickers mentioned in sources against the union of all symbols in `watchlists.json`. Mention peer companies/tickers that are not tracked in any watchlist yet, and briefly state why they surfaced. Keep these untracked peers separate from scored rankings because they may not have local data.
+
+For follow-up prompts asking for more depth on market context, use the latest completed daily snapshot and generated comparison files unless the user explicitly asks to rerun the update. Re-browse for current market context before answering.
+
+## Market Context Deep Dives
+
+When the user asks for deeper context, produce a synthesis that connects external market conditions to the local model output. Do not provide a generic news roundup. Cover the relevant lenses below, omitting any lens that is not supported by current sources or the watchlist mix:
+
+- macro backdrop: Fed policy, rates, inflation, yields, oil/geopolitics, economic growth, and credit conditions
+- market internals: index trend, breadth, leadership, concentration, volatility, sector rotation, and risk appetite
+- theme/sector context: semiconductors, software, AI infrastructure and grid, industrials, financials, consumer credit, healthcare, payments, and any newly important theme in `watchlists.json`
+- ticker implications: explain how the backdrop helps or hurts the highest-ranked names, borderline names, and obvious laggards
+- untracked peers: mention relevant peer tickers surfaced by current research that are absent from every watchlist
+- model alignment: state whether the news context reinforces, challenges, or is orthogonal to the score rankings
+
+For each major context point:
+
+- cite a current source link or say the point is an inference from local files
+- connect the point to specific watchlists and tickers, not just broad sectors
+- distinguish price momentum from the scoring model's quality/growth/valuation/risk components
+- mention whether the point is short-term market context or medium-/long-term business context
+
+Prefer primary and high-quality sources for macro facts: Federal Reserve releases, government economic data, Treasury/yield data, company IR/SEC filings, and major financial news. Use analyst notes or market commentary for interpretation, but label them as analyst/commentary views. Do not invent citations, cite inaccessible search snippets as if read directly, or make exact real-time market claims without a source.
+
+When sources disagree or are thin, write the uncertainty plainly. A strong answer can say "the local model says X, while current market context suggests watching Y risk."
+
 ## Watchlist Recommendations
 
 Recommend possible new watchlists or additions to existing watchlists when current market context points to relevant themes, sectors, competitors, suppliers, customers, or substitutes not already covered in `watchlists.json`.
@@ -113,6 +139,7 @@ Use evidence from:
 - current market/news themes from the last 7 days
 - sector moves and generated time-series comparison charts
 - peer groups around the highest-ranking names
+- peer companies/tickers surfaced by current-event research that are not already present in any watchlist
 - supply-chain relationships, especially AI infrastructure, semiconductors, power, data centers, payments, banking, and consumer credit
 - major earnings, guidance, filings, analyst actions, or macro events
 
@@ -151,9 +178,10 @@ Write the final answer as a ranked dashboard summary with a "what changed" and "
 5. Explain the main drivers using score components and relevant raw metrics such as ROIC, revenue growth, margins, valuation multiples, debt-to-equity, and discount-to-median.
 6. Summarize notable changes versus the prior snapshot, or say no prior snapshot was available.
 7. Reference and visually summarize relevant generated graphs.
-8. Add current-event context for the market and the relevant stocks, with links.
-9. Recommend possible new watchlists or additions to current watchlists based on market context, clearly separated from scored rankings.
-10. Mention missing tickers, stale data, coverage caveats, and scoring-model oddities.
-11. Close with the names worth deeper research and why.
+8. Add current-event context for the market and the relevant stocks, with links. If the user asks for depth, include a separate market-context section that maps macro/sector themes to watchlists and tickers.
+9. Mention relevant peer companies/tickers surfaced by current research that are not tracked in any watchlist yet, clearly separated from scored rankings.
+10. Recommend possible new watchlists or additions to current watchlists based on market context, clearly separated from scored rankings.
+11. Mention missing tickers, stale data, coverage caveats, and scoring-model oddities.
+12. Close with the names worth deeper research and why.
 
 Avoid presenting the output as investment advice. Phrase conclusions as model/ranking observations based on the local comparison files.
