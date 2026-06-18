@@ -13,6 +13,7 @@ from matplotlib.ticker import PercentFormatter
 from datetime import datetime, timedelta, timezone
 import json
 import math
+import argparse
 
 OPERATIONAL_TIME_FRAME_WEEKS = 52*6
 VALUATION_TIME_FRAME_WEEKS = 52*2
@@ -384,6 +385,11 @@ def get_scores(df_watchlist_comparison):
     return df_watchlist_comparison_clean
 
 def main():
+    parser = argparse.ArgumentParser(prog='CalculateFundamentals.py', description='Analyze a company\'s fundamentals.')
+    parser.add_argument('-s', '--skip_update', required=False, action='store_true', default=False, help='Skip the update step.')
+
+    args = parser.parse_args()
+
     db_connection = get_db_connection()
 
     with open('watchlists.json', 'r') as watchlists_file:
@@ -407,7 +413,8 @@ def main():
 
         for ticker in stock_tickers:
             try:
-                add_update_ticker(ticker, db_connection, run_time - timedelta(weeks=52*7))
+                if args.skip_update == False:
+                    add_update_ticker(ticker, db_connection, run_time - timedelta(weeks=52*7))
 
                 df_operational_metrics = TableOperationalMetrics.get_from(ticker,
                                                                           db_connection,
