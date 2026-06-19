@@ -7,19 +7,46 @@ import pandas as pd
 import numpy as np
 import sys
 
+SHARES_OUTSTANDING_COLUMNS = ['date', 'basic_shares', 'diluted_shares']
+
+def get_float_or_zero(value):
+    if value in (None, 'None', ''):
+        return 0
+
+    return float(value)
+
+def get_shares_rows_from_balance_sheet(ticker):
+    rows_list = []
+    with open('data/AlphaVantage/{}/BALANCE_SHEET.json'.format(ticker)) as balance_sheet_json:
+        balance_sheet = json.load(balance_sheet_json)
+
+    for item in balance_sheet.get('quarterlyReports', []):
+        shares = get_float_or_zero(item.get('commonStockSharesOutstanding'))
+        if shares == 0:
+            continue
+
+        rows_list.append({'date': item['fiscalDateEnding'],
+                          'basic_shares': shares,
+                          'diluted_shares': shares})
+
+    return rows_list
+
 def get_shares_outstanding(ticker):
     rows_list = []
     with open('data/AlphaVantage/{}/SHARES_OUTSTANDING.json'.format(ticker)) as shares_outstanding_json:
         shares_outstanding = json.load(shares_outstanding_json)
-        for item in shares_outstanding['data']:
+        for item in shares_outstanding.get('data', []):
             rows_list.append({'date': item['date'],
-                            'basic_shares': float(0 if item['shares_outstanding_basic'] == None
-                                                  else item['shares_outstanding_basic']),
-                            'diluted_shares': float(0 if item['shares_outstanding_diluted'] == None
-                                                    else item['shares_outstanding_diluted'])})
-    df_shares_outstanding = pd.DataFrame(rows_list)
+                            'basic_shares': get_float_or_zero(item['shares_outstanding_basic']),
+                            'diluted_shares': get_float_or_zero(item['shares_outstanding_diluted'])})
+
+    if not rows_list:
+        print('WARNING: SHARES_OUTSTANDING data is empty for {}. Falling back to BALANCE_SHEET commonStockSharesOutstanding.'.format(ticker))
+        rows_list = get_shares_rows_from_balance_sheet(ticker)
+
+    df_shares_outstanding = pd.DataFrame(rows_list, columns=SHARES_OUTSTANDING_COLUMNS)
     df_shares_outstanding['date'] = pd.to_datetime(df_shares_outstanding['date']).astype('datetime64[ns]')
-    df_shares_outstanding = df_shares_outstanding.sort_values('date')
+    df_shares_outstanding = df_shares_outstanding.sort_values('date').drop_duplicates('date')
     return df_shares_outstanding
 
 def get_timeseries_weekly_adjusted(ticker):

@@ -392,13 +392,13 @@ class TableSharesOutstanding():
         function_path = SAVED_JSON_PATH.format(ticker_name, SHARES_OUTSTANDING_FUNCTION_NAME)
         function_json = request_data(SHARES_OUTSTANDING_FUNCTION_NAME, ticker_name)
         # time.sleep(1)
-        if 'symbol' in function_json:
+        if function_json.get('data'):
             Path('data/AlphaVantage/{}'.format(ticker_name)).mkdir(exist_ok=True)
             with open(function_path, 'w') as export_json_file:
                 json.dump(function_json, export_json_file, indent=4)
         else:
             print('WARNING: Import of {} failed.  {}\r\n.  ' \
-            'Pulling from saved file if exists.'.format(SHARES_OUTSTANDING_FUNCTION_NAME, function_json))
+            'Pulling from saved or fallback data if exists.'.format(SHARES_OUTSTANDING_FUNCTION_NAME, function_json))
 
         df_shares_outstanding = get_shares_outstanding(ticker_name)
         check_latest_date = "SELECT MAX (date) FROM {} WHERE ticker=%(ticker_name)s;".format(TABLE_NAME_SHARES_OUTSTANDING)
