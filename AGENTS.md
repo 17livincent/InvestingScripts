@@ -59,7 +59,7 @@ Generated/local data lives under `data/`:
 - `data/* Valuation Comparisons.png`: matplotlib valuation comparison charts.
 - `data/* Time Series Daily Comparisons.png`: matplotlib daily close percent-change comparison charts, which may include stock tickers and index symbols.
 - `data/*_Comparison.json`: scored watchlist comparison output from `Comparisons.py`.
-- `data/daily_snapshots/YYYY-MM-DD/`: daily-update snapshots, containing copies of generated comparison JSON files, generated PNGs when useful, `watchlists.json`, and `metadata.json`.
+- `data/daily_snapshots/YYYY-MM-DD/`: daily-update snapshots, with `YYYY-MM-DD` based on the local US Pacific date at snapshot creation time, containing copies of generated comparison JSON files, generated PNGs when useful, `watchlists.json`, and `metadata.json`.
 
 `watchlists.json` defines the named watchlists used by `Comparisons.py`. Entries may be stock tickers or AlphaVantage index symbols such as `SPX`; index symbols are used for daily performance charts only.
 
@@ -99,7 +99,7 @@ When the user asks for a daily update, refreshed comparison data, a watchlist ru
 1. Work from the repository root and inspect `watchlists.json` for watchlist names, stock tickers, and index symbols.
 2. Run `uv run Comparisons.py` when a fresh update is requested. This may call AlphaVantage, read/write Supabase, refresh cached AlphaVantage files under `data/AlphaVantage/`, and regenerate comparison JSON/PNG files under `data/`.
 3. After a successful daily update, check timestamps for `data/*_Comparison.json` and `data/* Comparisons.png`.
-4. Save a snapshot under `data/daily_snapshots/YYYY-MM-DD/` with the comparison JSON files, useful generated PNGs, `watchlists.json`, and `metadata.json` including the run timestamp, update command, generated file names, and prior snapshot used.
+4. Save a snapshot under `data/daily_snapshots/YYYY-MM-DD/`, where `YYYY-MM-DD` is the local US Pacific date at snapshot creation time, with the comparison JSON files, useful generated PNGs, `watchlists.json`, and `metadata.json` including the run timestamp, update command, generated file names, and prior snapshot used.
 5. Compare the new scored JSON outputs with the most recent prior snapshot before today, looking back up to 14 days. If no prior snapshot exists in that window, say so clearly.
 6. Inspect generated PNG charts visually when chart interpretation is requested or useful.
 7. Use current web research for market and company context because daily market/news information changes. Cite sources for current-event claims.
