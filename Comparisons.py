@@ -517,6 +517,18 @@ def main():
                                                          'history_coverage',
                                                          'classification']].to_string())
 
+                    df_watchlist_stock_comparison[['ticker',
+                                                   'ttm_roic',
+                                                   'quality_score',
+                                                   'growth_score',
+                                                   'valuation_score',
+                                                   'risk_score',
+                                                   'total_score',
+                                                   'quality_coverage',
+                                                   'valuation_coverage',
+                                                   'history_coverage',
+                                                   'classification']].to_markdown('data/{}.md'.format(watchlist_name), index=False)
+
                     df_watchlist_stock_comparison.to_json('data/{}_Comparison.json'.format(watchlist_name), orient='records', indent=4)
 
                 if watchlist_calculated:

@@ -5,11 +5,9 @@
         "MA",
         "V",
         "AXP",
-        "FI",
         "FIS",
         "GPN",
-        "PYPL",
-        "ADYEY"
+        "PYPL"
     ],
     "Banks and Capital Markets": [
         "SPX",
@@ -23,7 +21,6 @@
         "BLK",
         "WFC",
         "PNC",
-        "BK",
         "TROW",
         "IBKR"
     ],
@@ -106,7 +103,6 @@
         "SNDK",
         "WDC",
         "STX",
-        "PSTG",
         "NTAP"
     ],
     "AI Servers and Infrastructure Hardware": [

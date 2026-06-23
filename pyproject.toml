@@ -10,5 +10,6 @@ dependencies = [
     "numpy",
     "matplotlib",
     "sqlalchemy",
-    "psycopg2-binary"
+    "psycopg2-binary",
+    "tabulate"
 ]
