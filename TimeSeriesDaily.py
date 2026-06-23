@@ -44,9 +44,9 @@ def get_time_series_daily_adjusted(ticker_name, minimum_date:datetime):
                                     daily_key in list(data['Time Series (Daily)'])
                                     if pd.to_datetime(daily_key, utc=True) >= minimum_date]
 
-    df_time_series_daily['close'] = [float(data['Time Series (Daily)'][daily_key]['4. close']) for
-                                    daily_key in list(data['Time Series (Daily)'])
-                                    if pd.to_datetime(daily_key, utc=True) >= minimum_date]
+    df_time_series_daily['close'] = [float(data['Time Series (Daily)'][daily_key]['5. adjusted close']) for
+                                     daily_key in list(data['Time Series (Daily)'])
+                                     if pd.to_datetime(daily_key, utc=True) >= minimum_date]
 
     df_time_series_daily['date'] = pd.to_datetime(df_time_series_daily['date'], utc=True)
     df_time_series_daily = df_time_series_daily.sort_values('date')
