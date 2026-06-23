@@ -48,6 +48,9 @@ RECENCY = {
     'valuation_metrics': 'week'
 }
 
+OPERATIONAL_METRICS_RECALC_QUARTERS = 6
+OPERATIONAL_METRICS_CONTEXT_QUARTERS = OPERATIONAL_METRICS_RECALC_QUARTERS + 4
+
 def get_naive_datetime(datetime_value):
     if datetime_value is None:
         return None
@@ -274,6 +277,16 @@ class TableFundamentals():
         return df_fundamentals
 
 class TableOperationalMetrics():
+    def get_latest_date(ticker_name, db_connection):
+        latest_date = None
+        check_latest_date = "SELECT MAX (date) FROM {} WHERE ticker=%(ticker_name)s;".format(TABLE_NAME_OPERATIONAL_METRICS)
+        df_latest_date = pd.read_sql_query(check_latest_date,
+                                            params={"ticker_name": ticker_name},
+                                            con=db_connection)
+        if df_latest_date['max'].iloc[0] != None:
+            latest_date = pd.to_datetime(df_latest_date['max']).iloc[0]
+        return latest_date
+
     def get_from(ticker_name, db_connection, minimum_date:datetime = None):
         """
             Get all rows from 'operational_metrics' of the given ticker.
@@ -329,19 +342,25 @@ class TableOperationalMetrics():
 
     def update(ticker_name, db_connection):
         """
-            Update 'operational_metrics' table from the latest 'fundamentals' table.
+        Update 'operational_metrics' table from the latest 'fundamentals' table.
         """
-        df_fundamentals = TableFundamentals.get_from(ticker_name, db_connection)
+        latest_date = TableOperationalMetrics.get_latest_date(ticker_name, db_connection)
+        minimum_date = None
+        upsert_start_date = None
+
+        if latest_date != None:
+            latest_date = get_naive_datetime(latest_date)
+            minimum_date = latest_date - pd.DateOffset(months=3 * OPERATIONAL_METRICS_CONTEXT_QUARTERS)
+            upsert_start_date = latest_date - pd.DateOffset(months=3 * OPERATIONAL_METRICS_RECALC_QUARTERS)
+
+        df_fundamentals = TableFundamentals.get_from(ticker_name, db_connection, minimum_date)
 
         operational_metrics = calculate_operational_metrics(df_fundamentals)
         operational_metrics['ticker'] = ticker_name
 
-        # Push to the tables
-        DELETE_ALL = text("DELETE FROM {} WHERE ticker=:ticker".format(TABLE_NAME_OPERATIONAL_METRICS,
-                                                                       ticker_name))
-        with db_connection.begin() as connection:
-            connection.execute(DELETE_ALL,
-                               {'ticker': ticker_name})
+        if upsert_start_date != None:
+            operational_metrics = operational_metrics[operational_metrics['date'] >= upsert_start_date]
+
         TableOperationalMetrics.append(ticker_name, operational_metrics, db_connection)
 
         return operational_metrics

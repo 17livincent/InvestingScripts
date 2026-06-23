@@ -269,7 +269,26 @@ INSERT_STATEMENT_OPERATIONAL_METRICS = text("INSERT INTO {} (ticker, " \
     ":ttm_operating_margin," \
     ":ttm_net_margin," \
     ":ttm_fcf_margin," \
-    ":ttm_ocf_margin)".format(TABLE_NAME_OPERATIONAL_METRICS))
+    ":ttm_ocf_margin) " \
+    "ON CONFLICT (ticker, date) DO UPDATE SET " \
+    "roic = EXCLUDED.roic," \
+    "roe = EXCLUDED.roe," \
+    "debt_to_equity = EXCLUDED.debt_to_equity," \
+    "nopat = EXCLUDED.nopat," \
+    "gross_margin = EXCLUDED.gross_margin," \
+    "operating_margin = EXCLUDED.operating_margin," \
+    "net_margin = EXCLUDED.net_margin," \
+    "ocf_margin = EXCLUDED.ocf_margin," \
+    "fcf_margin = EXCLUDED.fcf_margin," \
+    "revenue_growth_yoy = EXCLUDED.revenue_growth_yoy," \
+    "ttm_roic = EXCLUDED.ttm_roic," \
+    "ttm_net_income = EXCLUDED.ttm_net_income," \
+    "ttm_operating_income = EXCLUDED.ttm_operating_income," \
+    "ttm_fcf = EXCLUDED.ttm_fcf," \
+    "ttm_operating_margin = EXCLUDED.ttm_operating_margin," \
+    "ttm_net_margin = EXCLUDED.ttm_net_margin," \
+    "ttm_fcf_margin = EXCLUDED.ttm_fcf_margin," \
+    "ttm_ocf_margin = EXCLUDED.ttm_ocf_margin".format(TABLE_NAME_OPERATIONAL_METRICS))
 
 INSERT_STATEMENT_SHARES_OUTSTANDING = text("INSERT INTO {} (ticker, " \
     "date, " \
