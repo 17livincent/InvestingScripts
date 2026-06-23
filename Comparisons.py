@@ -505,29 +505,22 @@ def main():
                     # print(df_watchlist_stock_comparison.to_string())
 
                     df_watchlist_stock_comparison = get_scores(df_watchlist_stock_comparison)
-                    print(df_watchlist_stock_comparison[['ticker',
-                                                         'ttm_roic',
-                                                         'quality_score',
-                                                         'growth_score',
-                                                         'valuation_score',
-                                                         'risk_score',
-                                                         'total_score',
-                                                         'quality_coverage',
-                                                         'valuation_coverage',
-                                                         'history_coverage',
-                                                         'classification']].to_string())
 
-                    df_watchlist_stock_comparison[['ticker',
-                                                   'ttm_roic',
-                                                   'quality_score',
-                                                   'growth_score',
-                                                   'valuation_score',
-                                                   'risk_score',
-                                                   'total_score',
-                                                   'quality_coverage',
-                                                   'valuation_coverage',
-                                                   'history_coverage',
-                                                   'classification']].to_markdown('data/{}.md'.format(watchlist_name), index=False)
+                    df_comparison_summary = df_watchlist_stock_comparison[['ticker',
+                                                                           'ttm_roic',
+                                                                           'quality_score',
+                                                                           'growth_score',
+                                                                           'valuation_score',
+                                                                           'risk_score',
+                                                                           'total_score',
+                                                                           'quality_coverage',
+                                                                           'valuation_coverage',
+                                                                           'history_coverage',
+                                                                           'classification']]
+
+                    print(df_comparison_summary.to_string())
+
+                    df_comparison_summary.to_markdown('data/{}.md'.format(watchlist_name), index=False)
 
                     df_watchlist_stock_comparison.to_json('data/{}_Comparison.json'.format(watchlist_name), orient='records', indent=4)
 
