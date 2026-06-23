@@ -1,85 +1,31 @@
 {
-    "Watchlist": [
+    "Payments Networks": [
         "SPX",
         "NDX",
         "MA",
         "V",
-        "APH",
-        "DELL"
+        "AXP",
+        "FI",
+        "FIS",
+        "GPN",
+        "PYPL",
+        "ADYEY"
     ],
-    "Semiconductors": [
-        "SPX",
-        "NDX",
-        "MU",
-        "SNDK",
-        "NVDA",
-        "AMD",
-        "AVGO",
-        "MRVL",
-        "ARM",
-        "QCOM",
-        "TXN",
-        "KLAC",
-        "LRCX",
-        "ADI",
-        "TSM",
-        "ASML",
-        "INTC",
-        "WDC",
-        "STX",
-        "COHR"
-    ],
-    "Software": [
-        "SPX",
-        "NDX",
-        "PLTR",
-        "NOW",
-        "MSFT",
-        "ANET",
-        "APP",
-        "ADBE",
-        "CRM",
-        "INTU",
-        "DDOG"
-    ],
-    "Industrials": [
-        "SPX",
-        "NDX",
-        "APH",
-        "GE",
-        "ETN",
-        "HON",
-        "PH",
-        "ROK"
-    ],
-    "AI Infra and Grid": [
-        "SPX",
-        "NDX",
-        "PWR",
-        "CEG",
-        "ANET",
-        "TLN",
-        "VRT",
-        "VST",
-        "ETN",
-        "GE",
-        "GEV",
-        "HUBB",
-        "FIX",
-        "CMI",
-        "SEI",
-        "WTS"
-    ],
-    "Financial Services": [
+    "Banks and Capital Markets": [
         "SPX",
         "NDX",
         "JPM",
         "BAC",
         "C",
-        "SCHW",
         "GS",
         "MS",
-        "BLK"
+        "SCHW",
+        "BLK",
+        "WFC",
+        "PNC",
+        "BK",
+        "TROW",
+        "IBKR"
     ],
     "Consumer Credit": [
         "SPX",
@@ -88,13 +34,128 @@
         "BFH",
         "COF",
         "ALLY",
-        "AXP",
         "OMF",
         "SLM",
         "ENVA",
-        "SOFI"
+        "SOFI",
+        "LC",
+        "UPST",
+        "WRLD"
     ],
-    "Healthcare Quality": [
+    "Mega Cap Software Platforms": [
+        "SPX",
+        "NDX",
+        "MSFT",
+        "ADBE",
+        "CRM",
+        "INTU",
+        "NOW",
+        "ORCL"
+    ],
+    "High Growth Software and AI Apps": [
+        "SPX",
+        "NDX",
+        "PLTR",
+        "APP",
+        "DDOG",
+        "CRWD",
+        "NET",
+        "SNOW",
+        "MDB",
+        "TEAM"
+    ],
+    "Networking and AI Connectivity": [
+        "SPX",
+        "NDX",
+        "ANET",
+        "APH",
+        "AVGO",
+        "MRVL",
+        "COHR",
+        "GLW",
+        "CIEN",
+        "CSCO"
+    ],
+    "Semiconductor Designers": [
+        "SPX",
+        "NDX",
+        "NVDA",
+        "AMD",
+        "ARM",
+        "QCOM",
+        "TXN",
+        "ADI",
+        "MPWR",
+        "NXPI",
+        "MCHP",
+        "ON"
+    ],
+    "Semiconductor Equipment": [
+        "SPX",
+        "NDX",
+        "ASML",
+        "KLAC",
+        "LRCX",
+        "AMAT",
+        "TER"
+    ],
+    "Memory and Storage": [
+        "SPX",
+        "NDX",
+        "MU",
+        "SNDK",
+        "WDC",
+        "STX",
+        "PSTG",
+        "NTAP"
+    ],
+    "AI Servers and Infrastructure Hardware": [
+        "SPX",
+        "NDX",
+        "DELL",
+        "HPE",
+        "SMCI",
+        "VRT",
+        "ANET",
+        "NTAP"
+    ],
+    "Grid, Power, and Electrification": [
+        "SPX",
+        "NDX",
+        "ETN",
+        "GEV",
+        "HUBB",
+        "PWR",
+        "VRT",
+        "FIX",
+        "EME",
+        "MTZ",
+        "NVT"
+    ],
+    "Industrial Quality Compounders": [
+        "SPX",
+        "NDX",
+        "APH",
+        "PH",
+        "ROK",
+        "HON",
+        "ITW",
+        "DOV",
+        "IR",
+        "TT"
+    ],
+    "Power Producers and Utilities": [
+        "SPX",
+        "NDX",
+        "CEG",
+        "TLN",
+        "VST",
+        "NRG",
+        "PEG",
+        "NEE",
+        "SO"
+    ],
+    "Healthcare Devices and Tools": [
         "SPX",
         "NDX",
         "ISRG",
@@ -103,6 +164,18 @@
         "TMO",
         "DHR",
         "BSX",
-        "VCYT"
+        "MDT",
+        "EW",
+        "RMD",
+        "IDXX"
+    ],
+    "Diagnostics and Life Science Growth": [
+        "SPX",
+        "NDX",
+        "VCYT",
+        "DXCM",
+        "NTRA",
+        "GH",
+        "IQV"
     ]
 }
