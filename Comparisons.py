@@ -449,6 +449,7 @@ def main():
         time_series_start_time = run_time - timedelta(weeks=TIME_SERIES_TIME_FRAME_WEEKS)
 
         for ticker in stock_tickers:
+            print(f'Gathering {ticker}')
             try:
                 if args.skip_update == False:
                     add_update_ticker(ticker, db_connection, run_time - timedelta(weeks=52*7))
@@ -492,6 +493,7 @@ def main():
 
         # Get time series daily of any indices.
         for index_symbol in watchlist_indices:
+            print(f'Gathering index {index_symbol}')
             df_index_time_series_daily = get_index_time_series_daily(index_symbol, time_series_start_time)
             post_process_time_series_daily_adj(df_index_time_series_daily)
             df_calculated_all[index_symbol] = {'is_benchmark': True,
