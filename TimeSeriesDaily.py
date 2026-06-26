@@ -16,7 +16,7 @@ def get_time_series_daily_adjusted(ticker_name, minimum_date:datetime):
 
     data = request_data('TIME_SERIES_DAILY_ADJUSTED',
                         ticker_name,
-                        {'outputsize': 'compact',
+                        {'outputsize': 'full',
                          'datatype': 'json',
                          'entitlement': 'delayed'})
 

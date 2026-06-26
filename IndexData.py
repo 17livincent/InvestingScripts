@@ -8,6 +8,8 @@ from datetime import datetime
 import pandas as pd
 from pathlib import Path
 
+INDEX_DATA_PATH = 'data/AlphaVantage/{}/INDEX_DATA.json'
+
 def request_index_list():
     data_json = request_index_catalog()
 
@@ -28,21 +30,39 @@ def get_index_list():
 
     return index_list_dict
 
+def get_saved_index_data(index_symbol):
+    with open(INDEX_DATA_PATH.format(index_symbol), 'r') as index_json:
+        return json.load(index_json)
+
+def save_index_data(index_symbol, data_json):
+    Path('data/AlphaVantage/{}'.format(index_symbol)).mkdir(exist_ok=True)
+    with open(INDEX_DATA_PATH.format(index_symbol), 'w') as export_json_file:
+        json.dump(data_json, export_json_file, indent=4)
+
 def get_index_time_series_daily(index_symbol, minimum_date: datetime):
     data_json = request_data('INDEX_DATA', index_symbol, {'interval': 'daily'})
     df_index_data = pd.DataFrame()
 
     if data_json and 'data' in data_json and data_json['data']:
-        df_index_data = pd.DataFrame.from_records(data_json['data'])
-        df_index_data = df_index_data.reindex(columns=['date', 'open', 'high', 'low', 'close'])
-        df_index_data['date'] = pd.to_datetime(df_index_data['date'], utc=True, errors='coerce')
+        save_index_data(index_symbol, data_json)
+    else:
+        print("WARNING: no daily index data from AlphaVantage for {}. Pulling from saved file if exists.".format(
+            index_symbol))
+        try:
+            data_json = get_saved_index_data(index_symbol)
+        except FileNotFoundError:
+            data_json = {}
 
+    if data_json and 'data' in data_json and data_json['data']:
+        df_index_data = pd.DataFrame.from_records(data_json['data'])
+        df_index_data['date'] = pd.to_datetime(df_index_data['date'], utc=True)
+        df_index_data = df_index_data.dropna(subset=['date', 'close'])
+        df_index_data = df_index_data.reindex(columns=['date', 'open', 'high', 'low', 'close'])
+        df_index_data = df_index_data.loc[df_index_data['date'] >= minimum_date,
+                                          ['date', 'open', 'high', 'low', 'close']]
         for column in ['open', 'high', 'low', 'close']:
             df_index_data[column] = pd.to_numeric(df_index_data[column], errors='coerce')
 
-        df_index_data = df_index_data.loc[df_index_data['date'] >= minimum_date,
-                                          ['date', 'open', 'high', 'low', 'close']]
-        df_index_data = df_index_data.dropna(subset=['date', 'close'])
         df_index_data = df_index_data.sort_values('date')
     else:
         print("WARNING: no daily index data for {}.".format(index_symbol))

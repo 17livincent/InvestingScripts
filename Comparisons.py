@@ -17,6 +17,7 @@ import argparse
 
 OPERATIONAL_TIME_FRAME_WEEKS = 52*6
 VALUATION_TIME_FRAME_WEEKS = 52*2
+TIME_SERIES_TIME_FRAME_WEEKS = 26
 OPERATIONAL_AVG_YEARS = 3
 VALUATION_MEDIAN_YEARS = 2
 MIN_HISTORY_OBSERVATIONS = 4
@@ -180,6 +181,7 @@ def create_graph_figures(title, figure_def, df_comparison, df_data):
 
         for ticker_name in df_data:
             ticker_calculated = df_data[ticker_name][graph_x_y['table']]
+            is_benchmark = df_data[ticker_name]['is_benchmark']
 
             if ticker_calculated.empty:
                 print("WARNING: no {} data for {}.".format(graph_x_y['table'], ticker_name))
@@ -193,18 +195,32 @@ def create_graph_figures(title, figure_def, df_comparison, df_data):
                                                                           ticker_name))
                 continue
 
+            ticker_plot_data = ticker_calculated[[graph_x_y['x'], graph_x_y['y']]].dropna()
+            if ticker_plot_data.empty:
+                print("WARNING: no valid {} values for {}.".format(graph_x_y['y'], ticker_name))
+                continue
+
             if graph_x_y['type'] == 'line':
-                graph_ax.plot(ticker_calculated[graph_x_y['x']],
-                              ticker_calculated[graph_x_y['y']],
-                              label=ticker_name,
-                              linewidth=(3 if ticker_name == top_ttm_roic else 1.5))
+                line_kwargs = {
+                    'label': ticker_name,
+                    'linewidth': (3 if is_benchmark else (3 if ticker_name == top_ttm_roic else 1.5)),
+                    'linestyle': ('--' if is_benchmark else '-'),
+                    'marker': ('o' if len(ticker_plot_data) == 1 else None),
+                    'zorder': (4 if is_benchmark else 2)
+                }
+                if is_benchmark:
+                    line_kwargs['color'] = {'SPX': 'black', 'NDX': 'dimgray'}.get(ticker_name, 'gray')
+
+                graph_ax.plot(ticker_plot_data[graph_x_y['x']],
+                              ticker_plot_data[graph_x_y['y']],
+                              **line_kwargs)
             elif graph_x_y['type'] == 'scatter':
-                graph_ax.scatter(ticker_calculated[graph_x_y['x']],
-                                 ticker_calculated[graph_x_y['y']],
+                graph_ax.scatter(ticker_plot_data[graph_x_y['x']],
+                                 ticker_plot_data[graph_x_y['y']],
                                  label=ticker_name)
                 graph_ax.annotate(ticker_name,
-                                  (ticker_calculated[graph_x_y['x']].iloc[0],
-                                   ticker_calculated[graph_x_y['y']].iloc[0]))
+                                  (ticker_plot_data[graph_x_y['x']].iloc[0],
+                                   ticker_plot_data[graph_x_y['y']].iloc[0]))
 
         graph_ax.set_xlabel(graph_x_y['x'])
         graph_ax.set_ylabel(graph_x_y['y'])
@@ -235,7 +251,18 @@ def post_process_time_series_daily_adj(df_time_series_daily_adj):
     if df_time_series_daily_adj.empty or 'close' not in df_time_series_daily_adj.columns:
         return
 
+    df_time_series_daily_adj.sort_values('date', inplace=True)
+    df_time_series_daily_adj.dropna(subset=['date', 'close'], inplace=True)
+    df_time_series_daily_adj['close'] = pd.to_numeric(df_time_series_daily_adj['close'], errors='coerce')
+    df_time_series_daily_adj.dropna(subset=['close'], inplace=True)
+
+    if df_time_series_daily_adj.empty:
+        return
+
     initial_close_value = df_time_series_daily_adj.iloc[0]['close']
+    if initial_close_value == 0:
+        return
+
     df_time_series_daily_adj['close_change_perc'] = (df_time_series_daily_adj['close'] - initial_close_value) / initial_close_value
 
 def get_unique_symbols_in_watchlists(watchlists_json):
@@ -387,6 +414,7 @@ def get_scores(df_watchlist_comparison):
 def main():
     parser = argparse.ArgumentParser(prog='CalculateFundamentals.py', description='Analyze a company\'s fundamentals.')
     parser.add_argument('-s', '--skip_update', required=False, action='store_true', default=False, help='Skip the update step.')
+    parser.add_argument('-n', '--watchlist', required=False, default=None, help='Specific watchlist to compare.')
 
     args = parser.parse_args()
 
@@ -394,6 +422,15 @@ def main():
 
     with open('watchlists.json', 'r') as watchlists_file:
         watchlists_json = json.load(watchlists_file)
+
+        if args.watchlist:
+            if args.watchlist in watchlists_json:
+                print(args.watchlist)
+                watchlists_json = {args.watchlist: watchlists_json[args.watchlist]}
+            else:
+                print(f'Given watchlist of name {args.watchlist} NOT found.')
+                return
+
         print(watchlists_json)
 
         all_symbols = get_unique_symbols_in_watchlists(watchlists_json)
@@ -409,7 +446,7 @@ def main():
         run_time = datetime.now(timezone.utc)
         operational_start_time = run_time - timedelta(weeks=OPERATIONAL_TIME_FRAME_WEEKS)
         valuation_start_time = run_time - timedelta(weeks=VALUATION_TIME_FRAME_WEEKS)
-        time_series_start_time = valuation_start_time
+        time_series_start_time = run_time - timedelta(weeks=TIME_SERIES_TIME_FRAME_WEEKS)
 
         for ticker in stock_tickers:
             try:
@@ -424,10 +461,7 @@ def main():
                                                                       valuation_start_time)
 
                 df_time_series_daily_adjusted = get_time_series_daily_adjusted(ticker,
-                                                                               valuation_start_time)
-
-                if not df_time_series_daily_adjusted.empty and time_series_start_time < df_time_series_daily_adjusted['date'].iloc[0]:
-                    time_series_start_time = df_time_series_daily_adjusted['date'].iloc[0]
+                                                                               time_series_start_time)
 
                 # Some post-processing
                 post_process_valuation_metrics(df_valuation_metrics)
@@ -441,7 +475,8 @@ def main():
                 df_combined_comparison = pd.DataFrame([comparison_dict])
                 df_combined_comparison = df_combined_comparison.dropna()
 
-                df_calculated_all[ticker] = {'operational_metrics': df_operational_metrics,
+                df_calculated_all[ticker] = {'is_benchmark': False,
+                                             'operational_metrics': df_operational_metrics,
                                              'valuation_metrics': df_valuation_metrics,
                                              'combined_comparison': df_combined_comparison,
                                              'time_series_daily_adj': df_time_series_daily_adjusted}
@@ -459,7 +494,8 @@ def main():
         for index_symbol in watchlist_indices:
             df_index_time_series_daily = get_index_time_series_daily(index_symbol, time_series_start_time)
             post_process_time_series_daily_adj(df_index_time_series_daily)
-            df_calculated_all[index_symbol] = {'operational_metrics': pd.DataFrame(),
+            df_calculated_all[index_symbol] = {'is_benchmark': True,
+                                               'operational_metrics': pd.DataFrame(),
                                                'valuation_metrics': pd.DataFrame(),
                                                'combined_comparison': pd.DataFrame(),
                                                'time_series_daily_adj': df_index_time_series_daily}
