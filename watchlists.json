@@ -1,4 +1,8 @@
 {
+    "Major Indices": [
+        "SPX",
+        "NDX"
+    ],
     "Payments Networks": [
         "SPX",
         "NDX",
