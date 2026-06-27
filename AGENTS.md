@@ -1,167 +1,45 @@
 # AGENTS.md
 
-Guidance for coding agents working in this repository.
+`InvestingScripts`.
 
-## Project Overview
+## Project Shape
 
-This repository is a small Python project for stock analysis. Its overall goal is to rank and screen stocks for medium- to long-term investing, with an emphasis on business quality, durable growth, valuation discipline, and balance-sheet risk. It pulls company, financial statement, share count, weekly price, daily adjusted price, and daily index data from the AlphaVantage API, stores raw payloads under `data/AlphaVantage`, calculates operational and valuation metrics with pandas, writes tables to a Supabase Postgres database, and generates comparison graphs for symbols in `watchlists.json`.
+Python stock-analysis scripts that rank `watchlists.json` companies by quality, growth, valuation, and risk. AlphaVantage payloads are cached in `data/AlphaVantage/`; calculated tables go to Supabase; comparison JSON/PNG outputs go under `data/`.
 
-Core modules:
+Key files:
 
-- `RequestAndSave.py`: AlphaVantage request helpers and local JSON saving.
-- `DBConnection.py`: Supabase SQLAlchemy engine creation.
-- `InitDB.py`: database table definitions, insert statements, and initialization.
-- `TickerData.py`: main update orchestration for companies, fundamentals, prices, shares, operational metrics, and valuation metrics.
-- `OperationalMetrics.py`: transforms saved statements into fundamentals and operational metrics.
-- `ValuationMetrics.py`: combines fundamentals, weekly prices, and shares to calculate valuation metrics.
-- `TimeSeriesDaily.py`: fetches AlphaVantage `TIME_SERIES_DAILY_ADJUSTED` data for a ticker, persists successful responses under `data/AlphaVantage/<TICKER>/`, and returns filtered daily OHLC data as a dataframe.
-- `IndexData.py`: fetches and caches the AlphaVantage index catalog, requests daily `INDEX_DATA` for index symbols, and returns filtered daily OHLC data as a dataframe.
-- `Comparisons.py`: updates stock tickers in `watchlists.json`, includes index symbols in daily price-change charts, prints ranked stock comparisons, writes operational, valuation, and daily price-change comparison PNGs under `data/`, and writes scored watchlist comparison JSON files for stocks.
+- `RequestAndSave.py`: AlphaVantage request/cache helpers.
+- `DBConnection.py`: Supabase SQLAlchemy engine.
+- `InitDB.py`: table definitions, inserts, initialization.
+- `TickerData.py`: per-ticker update orchestration.
+- `OperationalMetrics.py`: fundamentals and operational metrics.
+- `ValuationMetrics.py`: valuation metrics from fundamentals, prices, and shares.
+- `TimeSeriesDaily.py`: cached `TIME_SERIES_DAILY_ADJUSTED` stock data for graphing.
+- `IndexData.py`: cached index catalog plus uncached daily `INDEX_DATA`.
+- `Comparisons.py`: watchlist updates, stock/index daily charts, scored comparison outputs.
 
-## Environment
+## Runtime And Side Effects
 
-- Python version: `>=3.12`.
-- Dependencies are declared in `pyproject.toml`.
-- The repo appears to be managed with `uv`; use `uv sync` if dependencies need to be installed.
-- Prefer running scripts through the project environment:
+- Use `uv run python ...`; common commands are `InitDB.py`, `TickerData.py`, and `Comparisons.py`.
+- Note `Comparisons.py` without `--skip_update` may take a long time.
+- Treat AlphaVantage calls and Supabase writes as real side effects.
+- Force a table refresh with `uv run python TickerData.py -t <TICKER> -u <TABLE_NAME>`; valid names come from `InitDB.TABLE_NAMES`.
 
-```bash
-uv run python InitDB.py
-uv run python TickerData.py -t MA
-uv run python Comparisons.py
-```
+## Data
 
-If `uv` is unavailable, use the local `.venv` or another Python 3.12+ environment with the dependencies from `pyproject.toml`.
+- `data/AlphaVantage/<TICKER>/*.json`: cached company, fundamentals, shares, weekly prices, daily adjusted prices.
+- `data/AlphaVantage/<TICKER>/TIME_SERIES_DAILY_ADJUSTED.json`: stock daily cache.
+- `data/AlphaVantage/INDEX_CATALOG.json`: index-symbol catalog.
+- `data/*_Comparison.json`: scored watchlist rows.
+- `data/* Operational Comparisons.png`, `data/* Valuation Comparisons.png`, `data/* Time Series Daily Comparisons.png`: charts.
+- `data/daily_snapshots/YYYY-MM-DD/`: daily-update snapshots dated by local US Pacific time.
 
-## Secrets And External Services
+`watchlists.json` entries may be stocks or AlphaVantage index symbols such as `SPX`; indexes are only used in daily performance charts and are not scored.
 
-Do not hard-code, print, commit, or replace secrets.
+## Caveats
 
-The scripts read credentials from GNU `pass`:
-
-- AlphaVantage API key: `pass show Keys/AlphaVantagePremium`
-- Supabase password: `pass show Password/Supabase`
-
-`DBConnection.py` contains the Supabase host/user connection string template. Treat database writes as real production-like side effects unless the user says otherwise.
-
-Networked scripts can call AlphaVantage and Supabase. Be mindful of API rate limits; existing update code sleeps briefly between some AlphaVantage calls and uses the `data_updates` table to avoid unnecessary refreshes.
-
-## Data And Generated Artifacts
-
-Generated/local data lives under `data/`:
-
-- `data/AlphaVantage/`: cache root for raw AlphaVantage responses. Keep AlphaVantage ticker and index-cache files here rather than directly under `data/`.
-- `data/AlphaVantage/<TICKER>/*.json`: raw AlphaVantage payloads for a stock ticker, including fundamentals, shares, weekly prices, and daily adjusted prices.
-- `data/AlphaVantage/<TICKER>/TIME_SERIES_DAILY_ADJUSTED.json`: raw persisted daily adjusted time series payload from `TimeSeriesDaily.py`.
-- `data/AlphaVantage/<TICKER>/calculated_fundamentals.csv`: local calculated output if generated.
-- `data/AlphaVantage/INDEX_CATALOG.json`: cached AlphaVantage index catalog used to distinguish stock tickers from index symbols in watchlists.
-- `data/* Operational Comparisons.png`: matplotlib operational comparison charts.
-- `data/* Valuation Comparisons.png`: matplotlib valuation comparison charts.
-- `data/* Time Series Daily Comparisons.png`: matplotlib daily close percent-change comparison charts, which may include stock tickers and index symbols.
-- `data/*_Comparison.json`: scored watchlist comparison output from `Comparisons.py`.
-- `data/daily_snapshots/YYYY-MM-DD/`: daily-update snapshots, with `YYYY-MM-DD` based on the local US Pacific date at snapshot creation time, containing copies of generated comparison JSON files, generated PNGs when useful, `watchlists.json`, and `metadata.json`.
-
-`watchlists.json` defines the named watchlists used by `Comparisons.py`. Entries may be stock tickers or AlphaVantage index symbols such as `SPX`; index symbols are used for daily performance charts only.
-
-The `.gitignore` currently ignores `*.json`, `data/`, `.venv`, `uv.lock`, `.python-version`, and `__pycache__`. Even if ignored files are present locally, avoid deleting or regenerating them unless the task requires it.
-
-## Database Schema And Update Flow
-
-`InitDB.py` defines these database tables:
-
-- `companies`
-- `fundamentals`
-- `operational_metrics`
-- `prices_weekly`
-- `shares_outstanding`
-- `valuation_metrics`
-- `data_updates`
-- `report_dates`
-
-Normal update flow:
-
-1. `TickerData.add_update_ticker()` checks the last update in `data_updates` or latest table dates.
-2. Company overview, fundamentals, shares outstanding, and weekly prices are refreshed only when stale.
-3. Operational metrics are recalculated from `fundamentals`.
-4. Valuation metrics are recalculated from fundamentals, operational metrics, prices, and shares.
-5. `Comparisons.py` separates stock tickers from index symbols using `IndexData.get_index_list()`, runs the stock update flow for every unique stock ticker in `watchlists.json`, fetches recent daily stock and index series for comparison charts, then generates watchlist charts and scored comparison JSON.
-
-Daily adjusted stock time series data is currently used for graphing only. It is requested directly through `TimeSeriesDaily.get_time_series_daily_adjusted()`, persisted as local JSON when AlphaVantage returns `Time Series (Daily)`, and loaded from `data/AlphaVantage/<TICKER>/TIME_SERIES_DAILY_ADJUSTED.json` when the request does not return daily time series data. It is not written to a database table by the normal update flow.
-
-Daily index time series data is requested through `IndexData.get_index_time_series_daily()` for AlphaVantage index symbols in watchlists. Index daily data is used for the `Time Series Daily Comparisons` chart only, is not scored, and is not written to a database table.
-
-Use `TickerData.py -t <TICKER> -u <TABLE_NAME>` to force a table refresh by removing that ticker/table entry from `data_updates` before updating. Valid table names are based on `InitDB.TABLE_NAMES`.
-
-## Daily Update Reporting Flow
-
-When the user asks for a daily update, refreshed comparison data, a watchlist rundown, notable changes, or ranked candidates, use the daily-update flow:
-
-1. Work from the repository root and inspect `watchlists.json` for watchlist names, stock tickers, and index symbols.
-2. Run `uv run Comparisons.py` when a fresh update is requested. This may call AlphaVantage, read/write Supabase, refresh cached AlphaVantage files under `data/AlphaVantage/`, and regenerate comparison JSON/PNG files under `data/`.
-3. After a successful daily update, check timestamps for `data/*_Comparison.json` and `data/* Comparisons.png`.
-4. Save a snapshot under `data/daily_snapshots/YYYY-MM-DD/`, where `YYYY-MM-DD` is the local US Pacific date at snapshot creation time, with the comparison JSON files, useful generated PNGs, `watchlists.json`, and `metadata.json` including the run timestamp, update command, generated file names, and prior snapshot used.
-5. Compare the new scored JSON outputs with the most recent prior snapshot before today, looking back up to 14 days. If no prior snapshot exists in that window, say so clearly.
-6. Inspect generated PNG charts visually when chart interpretation is requested or useful.
-7. Use current web research for market and company context because daily market/news information changes. Cite sources for current-event claims.
-8. State exact local timestamps, data dates, missing tickers, stale-data caveats, and whether the report is based on a fresh run or existing cached outputs.
-
-Do not present the daily-update report as investment advice. Phrase conclusions as model and watchlist observations from the local comparison files plus any cited current-event context.
-
-## Comparison Scoring
-
-`Comparisons.py` builds comparison rows from the latest operational and valuation metrics, then adds trailing history summaries before scoring each watchlist. Operational history is loaded over six years, valuation history over two years, but the trailing summary fields are:
-
-- Three-year operational averages: `ttm_roic_3yr_avg`, `revenue_growth_yoy_3yr_avg`, `ttm_operating_margin_3yr_avg`, and `ttm_fcf_margin_3yr_avg`.
-- Three-year operational volatility: `ttm_roic_3yr_std`, used with `ttm_roic_3yr_avg` to rank quality consistency.
-- Two-year valuation medians: `pe_ttm_2yr_median`, `ev_ebit_2yr_median`, and `ev_fcf_2yr_median`.
-
-Trailing summaries are calculated from rows whose `date` is within the requested year window relative to the latest available date in that dataframe. A summary returns missing data unless at least `MIN_HISTORY_OBSERVATIONS` valid numeric observations are available.
-
-Scores are percentile ranks within the current watchlist, not absolute market scores. Higher ranks are better. For valuation multiples and debt-to-equity, lower raw values rank higher. Current valuation-to-median discounts are computed as current multiple divided by the matching two-year median, and lower discount ratios rank higher.
-
-Score components and weights:
-
-- `quality_score` uses `ttm_roic_perc_rank` 45%, `ttm_operating_margin_perc_rank` 20%, `ttm_fcf_margin_perc_rank` 15%, and `quality_consistency_perc_rank` 20%. Quality consistency ranks `ttm_roic_3yr_avg - ttm_roic_3yr_std`.
-- `growth_score` uses current `revenue_growth_yoy_perc_rank` 60% and `revenue_growth_yoy_3yr_avg_perc_rank` 40%.
-- `valuation_score` uses current `pe_ttm_perc_rank`, `ev_ebit_perc_rank`, and `ev_fcf_perc_rank` at 23.33% each, plus `pe_ttm_discount_perc_rank`, `ev_ebit_discount_perc_rank`, and `ev_fcf_discount_perc_rank` at 10% each.
-- `risk_score` uses `debt_to_equity_perc_rank` 50%, `ttm_fcf_margin_perc_rank` 30%, and `ttm_operating_margin_perc_rank` 20%. Negative debt-to-equity values are treated as 5 and clipped at 5 before ranking.
-
-`get_weighted_score()` normalizes by the weights of non-missing components, so missing component data does not automatically count as zero inside a component score. After component scores are calculated, missing `quality_score`, `growth_score`, `valuation_score`, or `risk_score` values are filled with zero for `total_score`.
-
-`total_score` is a weighted blend of `quality_score` 40%, `growth_score` 20%, `valuation_score` 20%, and `risk_score` 20%. `get_scores()` sorts by `total_score` descending, prints score columns with `quality_coverage`, `valuation_coverage`, `history_coverage`, and `classification`, and writes each watchlist to `data/<WATCHLIST>_Comparison.json`.
-
-Classifications are based on coverage and total score: any row with minimum `quality_coverage`, `valuation_coverage`, or `history_coverage` below 0.6 is `Incomplete data`; otherwise `total_score >= 80` is `High quality candidate`, `>= 65` is `Watchlist quality`, `>= 50` is `Mixed`, and lower scores are `Low rank`.
-
-`Comparisons.py` also fetches daily stock and index time series over the valuation time frame and post-processes the returned close values into `close_change_perc` for the `Time Series Daily Comparisons` chart. This graph shows each symbol's close percent change over the selected date range and is separate from the scoring model.
-
-## Development Practices
-
-- Keep changes small and aligned with the current flat-script style unless a larger refactor is explicitly requested.
-- Prefer pandas/SQLAlchemy APIs already used in the project over ad hoc parsing or direct database drivers.
-- Preserve the existing table names and column names unless intentionally migrating schema and all dependent insert/query code.
-- Be careful with date handling. The code mixes quarter-based financial statement dates, weekly price dates, daily adjusted stock price dates, daily index dates, and timezone-aware update timestamps.
-- Avoid adding broad side effects at import time. Several current files already execute work as scripts; when adding new behavior, prefer functions plus `if __name__ == "__main__":`.
-- Do not commit generated `data/` artifacts or local JSON files unless the user explicitly asks.
-- Do not replace the `pass`-based secret flow with checked-in `.env` values.
-
-## Validation
-
-There is no test suite in the current repository. For code changes, use the narrowest practical validation:
-
-- Syntax check changed Python files:
-
-```bash
-uv run python -m py_compile <file>.py
-```
-
-- For pure calculation changes, prefer a small local pandas check using existing saved files under `data/AlphaVantage/<TICKER>/` when available.
-- For database-writing changes, explain the expected side effects before running scripts that update Supabase.
-- For graph changes, run `uv run python Comparisons.py` only when AlphaVantage/Supabase access is intended, then inspect the generated PNG files under `data/`, including the daily price-change comparison chart when relevant.
-
-## Known Caveats
-
-- Some SQL query strings are built with formatted ticker values. If accepting new user input paths, prefer parameterized queries.
-- `RequestAndSave.get_api_key()` strips the AlphaVantage key from `pass` output before building request params; preserve that normalization when touching request code.
-- AlphaVantage error/rate-limit responses are handled by falling back to saved files under `data/AlphaVantage/` when possible for saved fundamentals, weekly data, and daily adjusted stock data, so missing local JSON can surface as `FileNotFoundError`.
-- `TimeSeriesDaily.py` calls `request_data()` directly with AlphaVantage query params such as `outputsize`, `datatype`, and `entitlement`; it persists successful responses locally and falls back to the saved `TIME_SERIES_DAILY_ADJUSTED.json` file if the response lacks `Time Series (Daily)`.
-- `IndexData.py` uses `request_data()` for AlphaVantage `INDEX_DATA` with a daily interval. Index rows are parsed into a dataframe for graphing, but the daily index response is not currently persisted.
+- Date handling mixes quarter statement dates, weekly prices, daily stock prices, daily index dates, and timezone-aware update timestamps.
+- Some SQL strings interpolate ticker values; parameterize new user-input paths.
+- `RequestAndSave.get_api_key()` strips the AlphaVantage key from `pass` output.
+- AlphaVantage errors/rate limits fall back to saved files when possible; missing caches can raise `FileNotFoundError`.
+- Generated `data/` artifacts and local JSON files are ignored; do not commit them unless explicitly requested.
