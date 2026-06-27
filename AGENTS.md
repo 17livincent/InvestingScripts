@@ -20,10 +20,10 @@ Key files:
 
 ## Runtime And Side Effects
 
-- Use `uv run python ...`; common commands are `InitDB.py`, `TickerData.py`, and `Comparisons.py`.
+- Use `uv run ...`; common commands are `InitDB.py`, `TickerData.py`, and `Comparisons.py`.
 - Note `Comparisons.py` without `--skip_update` may take a long time.
 - Treat AlphaVantage calls and Supabase writes as real side effects.
-- Force a table refresh with `uv run python TickerData.py -t <TICKER> -u <TABLE_NAME>`; valid names come from `InitDB.TABLE_NAMES`.
+- Force a table refresh with `uv run TickerData.py -t <TICKER> -u <TABLE_NAME>`; valid names come from `InitDB.TABLE_NAMES`.
 
 ## Data
 
