@@ -3,7 +3,7 @@
 """
 
 from sqlalchemy import text
-from DBConnection import get_db_connection
+from DBConnection import get_db_engine
 
 '''
 Tables:
@@ -344,8 +344,8 @@ def init_db_tables(engine):
     print("Database initialized.")
 
 def main():
-    db_connection = get_db_connection()
-    init_db_tables(db_connection)
+    db_engine = get_db_engine()
+    init_db_tables(db_engine)
 
 if __name__ == "__main__":
     main()

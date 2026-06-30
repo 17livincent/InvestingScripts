@@ -34,7 +34,7 @@ def get_env_value(*names, default=None):
     return default
 
 
-def get_db_connection():
+def get_db_engine():
     load_env_file()
 
     database_url = get_env_value("INVESTING_DATABASE_URL")

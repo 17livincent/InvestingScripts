@@ -6,7 +6,7 @@ from ValuationMetrics import get_latest_valuation
 from TickerData import TableOperationalMetrics, TableValuationMetrics, add_update_ticker
 from TimeSeriesDaily import get_time_series_daily_adjusted
 from IndexData import get_index_list, get_index_time_series_daily
-from DBConnection import get_db_connection
+from DBConnection import get_db_engine
 import pandas as pd
 import matplotlib.pyplot as plt
 from matplotlib.ticker import PercentFormatter
@@ -411,15 +411,7 @@ def get_scores(df_watchlist_comparison):
 
     return df_watchlist_comparison_clean
 
-def main():
-    parser = argparse.ArgumentParser(prog='CalculateFundamentals.py', description='Analyze a company\'s fundamentals.')
-    parser.add_argument('-s', '--skip_update', required=False, action='store_true', default=False, help='Skip the update step.')
-    parser.add_argument('-n', '--watchlist', required=False, default=None, help='Specific watchlist to compare.')
-
-    args = parser.parse_args()
-
-    db_connection = get_db_connection()
-
+def run_comparisons(args, db_connection):
     with open('watchlists.json', 'r') as watchlists_file:
         watchlists_json = json.load(watchlists_file)
 
@@ -567,6 +559,17 @@ def main():
                                          time_series_figure,
                                          df_watchlist_stock_comparison,
                                          watchlist_calculated)
+
+def main():
+    parser = argparse.ArgumentParser(prog='CalculateFundamentals.py', description='Analyze a company\'s fundamentals.')
+    parser.add_argument('-s', '--skip_update', required=False, action='store_true', default=False, help='Skip the update step.')
+    parser.add_argument('-n', '--watchlist', required=False, default=None, help='Specific watchlist to compare.')
+
+    args = parser.parse_args()
+
+    db_engine = get_db_engine()
+    with db_engine.connect() as db_connection:
+        run_comparisons(args, db_connection)
 
 if __name__ == "__main__":
     main()

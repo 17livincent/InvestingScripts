@@ -23,7 +23,7 @@ from InitDB import (TABLE_NAMES,
                     INSERT_STATEMENT_SHARES_OUTSTANDING,
                     INSERT_STATEMENT_PRICES_WEEKLY,
                     INSERT_STATEMENT_VALUATION_METRICS)
-from DBConnection import get_db_connection
+from DBConnection import get_db_engine
 from pathlib import Path
 import json
 import pandas as pd
@@ -57,15 +57,40 @@ def get_naive_datetime(datetime_value):
 
     return pd.to_datetime(datetime_value).tz_localize(None)
 
+def read_db_query(query, db_connection, **kwargs):
+    if hasattr(db_connection, 'execute'):
+        return pd.read_sql_query(query, con=db_connection, **kwargs)
+
+    with db_connection.connect() as connection:
+        return pd.read_sql_query(query, con=connection, **kwargs)
+
+def execute_db_write(db_connection, statement, params=None):
+    if hasattr(db_connection, 'execute'):
+        try:
+            if params is None:
+                db_connection.execute(statement)
+            else:
+                db_connection.execute(statement, params)
+            db_connection.commit()
+        except Exception:
+            db_connection.rollback()
+            raise
+        return
+
+    with db_connection.begin() as connection:
+        if params is None:
+            connection.execute(statement)
+        else:
+            connection.execute(statement, params)
+
 class DataUpdates():
     @staticmethod
     def get_all_last_updates(ticker_name, db_connection):
         query = "SELECT dataset, last_updated FROM data_updates WHERE ticker=%(ticker_name)s"
 
-        with db_connection.connect() as connection:
-            df_updates = pd.read_sql_query(query,
-                                           params={"ticker_name": ticker_name},
-                                           con=connection)
+        df_updates = read_db_query(query,
+                                   db_connection,
+                                   params={"ticker_name": ticker_name})
 
         return {row['dataset']: pd.to_datetime(row['last_updated'], utc=True)
                 for _, row in df_updates.iterrows()}
@@ -76,10 +101,9 @@ class DataUpdates():
                             "VALUES (:ticker_name, :dataset_name, :last_updated) "
                             "ON CONFLICT (ticker, dataset) DO UPDATE "
                             "SET last_updated = EXCLUDED.last_updated".format(TABLE_NAME_DATA_UPDATES))
-        with db_connection.begin() as connection:
-            connection.execute(UPSERT_ENTRY, {'ticker_name': ticker_name,
-                                              'dataset_name': table_name,
-                                              'last_updated': datetime.now(timezone.utc)})
+        execute_db_write(db_connection, UPSERT_ENTRY, {'ticker_name': ticker_name,
+                                                       'dataset_name': table_name,
+                                                       'last_updated': datetime.now(timezone.utc)})
         print('Updated {} for {} and {}.'.format(TABLE_NAME_DATA_UPDATES, ticker_name, table_name))
 
     @staticmethod
@@ -104,10 +128,10 @@ class DataUpdates():
         DELETE_ENTRY = text("DELETE FROM {} WHERE ticker=:ticker and dataset=:dataset;".format(TABLE_NAME_DATA_UPDATES))
 
         if dataset in TABLE_NAMES:
-            with db_connection.begin() as connection:
-                connection.execute(DELETE_ENTRY,
-                                   {'ticker': ticker_name,
-                                    'dataset': dataset})
+            execute_db_write(db_connection,
+                             DELETE_ENTRY,
+                             {'ticker': ticker_name,
+                              'dataset': dataset})
             print("Deleted ({},{}) in {}.".format(ticker_name, dataset, TABLE_NAME_DATA_UPDATES))
 
         else:
@@ -120,8 +144,7 @@ class TableCompanies():
             Get the latest row from 'companies' of the given ticker.
         """
         query_str = "SELECT * FROM {} WHERE ticker = '{}';".format(TABLE_COMPANIES_NAME, ticker_name)
-        with db_connection.connect() as connection:
-            df_company = pd.read_sql_query(query_str, con=connection)
+        df_company = read_db_query(query_str, db_connection)
         return df_company
 
     def add(ticker_name, db_connection):
@@ -176,14 +199,13 @@ class TableCompanies():
                                 "exchange = EXCLUDED.exchange, " \
                                 "country = EXCLUDED.country, " \
                                 "market_cap_latest = EXCLUDED.market_cap_latest".format(TABLE_COMPANIES_NAME))
-            with db_connection.begin() as connection:
-                connection.execute(UPSERT_ENTRY, {'ticker': overview_json['Symbol'],
-                                                  'company_name': overview_json['Name'],
-                                                  'sector': overview_json['Sector'],
-                                                  'industry': overview_json['Industry'],
-                                                  'exchange': overview_json['Exchange'],
-                                                  'country': overview_json['Country'],
-                                                  'market_cap_latest': float(overview_json['MarketCapitalization'])})
+            execute_db_write(db_connection, UPSERT_ENTRY, {'ticker': overview_json['Symbol'],
+                                                           'company_name': overview_json['Name'],
+                                                           'sector': overview_json['Sector'],
+                                                           'industry': overview_json['Industry'],
+                                                           'exchange': overview_json['Exchange'],
+                                                           'country': overview_json['Country'],
+                                                           'market_cap_latest': float(overview_json['MarketCapitalization'])})
 
             DataUpdates.add_data_update(ticker_name, TABLE_COMPANIES_NAME, db_connection)
             print('Added row for {} to table {}.'.format(ticker_name, TABLE_COMPANIES_NAME))
@@ -205,10 +227,9 @@ class TableFundamentals():
                                                                                                    ticker_name,
                                                                                                    min_date_str)
 
-        with db_connection.connect() as connection:
-            df_fundamentals = pd.read_sql_query(query_str, con=connection)
-            df_fundamentals['date'] = pd.to_datetime(df_fundamentals['date'])
-            df_fundamentals = df_fundamentals.sort_values('date')
+        df_fundamentals = read_db_query(query_str, db_connection)
+        df_fundamentals['date'] = pd.to_datetime(df_fundamentals['date'])
+        df_fundamentals = df_fundamentals.sort_values('date')
         return df_fundamentals
 
     def append(ticker_name, df_fundamentals, db_connection):
@@ -232,9 +253,8 @@ class TableFundamentals():
                                           'cash',
                                           'shareholder_equity']].to_dict(orient='records')
             insert_statement = INSERT_STATEMENT_FUNDAMENTALS
-            with db_connection.begin() as connection:
-                connection.execute(insert_statement, data_dicts)
-                print('Added {} for {}.'.format(TABLE_NAME_FUNDAMENTALS, ticker_name))
+            execute_db_write(db_connection, insert_statement, data_dicts)
+            print('Added {} for {}.'.format(TABLE_NAME_FUNDAMENTALS, ticker_name))
         DataUpdates.add_data_update(ticker_name, TABLE_NAME_FUNDAMENTALS, db_connection)
 
     def update(ticker_name, db_connection, minimum_date:datetime = None):
@@ -262,9 +282,9 @@ class TableFundamentals():
         df_fundamentals['ticker'] = ticker_name
 
         check_latest_date = "SELECT MAX (date) FROM {} WHERE ticker=%(ticker_name)s;".format(TABLE_NAME_FUNDAMENTALS)
-        df_latest_date = pd.read_sql_query(check_latest_date,
-                                            params={"ticker_name": ticker_name},
-                                            con=db_connection)
+        df_latest_date = read_db_query(check_latest_date,
+                                       db_connection,
+                                       params={"ticker_name": ticker_name})
         if df_latest_date['max'].iloc[0] == None:
             minimum_date = get_naive_datetime(minimum_date)
             if minimum_date is not None:
@@ -280,9 +300,9 @@ class TableOperationalMetrics():
     def get_latest_date(ticker_name, db_connection):
         latest_date = None
         check_latest_date = "SELECT MAX (date) FROM {} WHERE ticker=%(ticker_name)s;".format(TABLE_NAME_OPERATIONAL_METRICS)
-        df_latest_date = pd.read_sql_query(check_latest_date,
-                                            params={"ticker_name": ticker_name},
-                                            con=db_connection)
+        df_latest_date = read_db_query(check_latest_date,
+                                       db_connection,
+                                       params={"ticker_name": ticker_name})
         if df_latest_date['max'].iloc[0] != None:
             latest_date = pd.to_datetime(df_latest_date['max']).iloc[0]
         return latest_date
@@ -301,10 +321,9 @@ class TableOperationalMetrics():
                                                                                                    ticker_name,
                                                                                                    min_date_str)
 
-        with db_connection.connect() as connection:
-            df_operational_metrics = pd.read_sql_query(query_str, con=connection)
-            df_operational_metrics['date'] = pd.to_datetime(df_operational_metrics['date'])
-            df_operational_metrics = df_operational_metrics.sort_values('date')
+        df_operational_metrics = read_db_query(query_str, db_connection)
+        df_operational_metrics['date'] = pd.to_datetime(df_operational_metrics['date'])
+        df_operational_metrics = df_operational_metrics.sort_values('date')
         return df_operational_metrics
 
     def append(ticker_name, df_operational_metrics, db_connection):
@@ -335,9 +354,8 @@ class TableOperationalMetrics():
                                                 'ttm_fcf_margin',
                                                 'ttm_ocf_margin']].to_dict(orient='records')
             insert_statement = INSERT_STATEMENT_OPERATIONAL_METRICS
-            with db_connection.begin() as connection:
-                connection.execute(insert_statement, data_dicts)
-                print('Added {} for {}.'.format(TABLE_NAME_OPERATIONAL_METRICS, ticker_name))
+            execute_db_write(db_connection, insert_statement, data_dicts)
+            print('Added {} for {}.'.format(TABLE_NAME_OPERATIONAL_METRICS, ticker_name))
         DataUpdates.add_data_update(ticker_name, TABLE_NAME_OPERATIONAL_METRICS, db_connection)
 
     def update(ticker_name, db_connection):
@@ -380,9 +398,8 @@ class TableSharesOutstanding():
                                                                                                    ticker_name,
                                                                                                    min_date_str)
 
-        with db_connection.connect() as connection:
-            df_shares_outstanding = pd.read_sql_query(query_str, con=connection)
-            df_shares_outstanding['date'] = pd.to_datetime(df_shares_outstanding['date'])
+        df_shares_outstanding = read_db_query(query_str, db_connection)
+        df_shares_outstanding['date'] = pd.to_datetime(df_shares_outstanding['date'])
         return df_shares_outstanding
 
     def append(ticker_name, df_shares_outstanding, db_connection):
@@ -399,8 +416,7 @@ class TableSharesOutstanding():
                                                      'basic_shares',
                                                      'diluted_shares']].to_dict(orient='records')
             insert_statement = INSERT_STATEMENT_SHARES_OUTSTANDING
-            with db_connection.begin() as connection:
-                connection.execute(insert_statement, data_dicts)
+            execute_db_write(db_connection, insert_statement, data_dicts)
         DataUpdates.add_data_update(ticker_name, TABLE_NAME_SHARES_OUTSTANDING, db_connection)
 
     def update(ticker_name, db_connection, minimum_date:datetime = None):
@@ -421,9 +437,9 @@ class TableSharesOutstanding():
 
         df_shares_outstanding = get_shares_outstanding(ticker_name)
         check_latest_date = "SELECT MAX (date) FROM {} WHERE ticker=%(ticker_name)s;".format(TABLE_NAME_SHARES_OUTSTANDING)
-        df_latest_date = pd.read_sql_query(check_latest_date,
-                                            params={"ticker_name": ticker_name},
-                                            con=db_connection)
+        df_latest_date = read_db_query(check_latest_date,
+                                       db_connection,
+                                       params={"ticker_name": ticker_name})
         if df_latest_date['max'].iloc[0] == None:
             minimum_date = get_naive_datetime(minimum_date)
             if minimum_date is not None:
@@ -439,9 +455,9 @@ class TablePricesWeekly():
     def get_latest_date(ticker_name, db_connection):
         latest_date = None
         check_latest_date = "SELECT MAX (date) FROM {} WHERE ticker=%(ticker_name)s;".format(TABLE_NAME_PRICES_WEEKLY)
-        df_latest_date = pd.read_sql_query(check_latest_date,
-                                            params={"ticker_name": ticker_name},
-                                            con=db_connection)
+        df_latest_date = read_db_query(check_latest_date,
+                                       db_connection,
+                                       params={"ticker_name": ticker_name})
         if df_latest_date['max'].iloc[0] != None:
             latest_date = pd.to_datetime(df_latest_date['max'], utc=True).iloc[0]
         return latest_date
@@ -455,10 +471,9 @@ class TablePricesWeekly():
         if minimum_date != None:
             query_str += " AND date >= '{}'".format(minimum_date.strftime("%Y-%m-%d"))
 
-        with db_connection.connect() as connection:
-            df_prices_weekly = pd.read_sql_query(query_str, con=connection)
-            df_prices_weekly['date'] = pd.to_datetime(df_prices_weekly['date'])
-            df_prices_weekly = df_prices_weekly.sort_values('date')
+        df_prices_weekly = read_db_query(query_str, db_connection)
+        df_prices_weekly['date'] = pd.to_datetime(df_prices_weekly['date'])
+        df_prices_weekly = df_prices_weekly.sort_values('date')
         return df_prices_weekly
 
     def append(ticker_name, df_prices_weekly, db_connection):
@@ -475,8 +490,7 @@ class TablePricesWeekly():
                                            'adjusted_close',
                                            'volume']].to_dict(orient='records')
             insert_statement = INSERT_STATEMENT_PRICES_WEEKLY
-            with db_connection.begin() as connection:
-                connection.execute(insert_statement, data_dicts)
+            execute_db_write(db_connection, insert_statement, data_dicts)
         DataUpdates.add_data_update(ticker_name, TABLE_NAME_PRICES_WEEKLY, db_connection)
 
     def update(ticker_name, db_connection, minimum_date:datetime = None):
@@ -497,9 +511,9 @@ class TablePricesWeekly():
 
         df_prices_weekly = get_timeseries_weekly_adjusted(ticker_name)
         check_latest_date = "SELECT MAX (date) FROM {} WHERE ticker=%(ticker_name)s;".format(TABLE_NAME_PRICES_WEEKLY)
-        df_latest_date = pd.read_sql_query(check_latest_date,
-                                            params={"ticker_name": ticker_name},
-                                            con=db_connection)
+        df_latest_date = read_db_query(check_latest_date,
+                                       db_connection,
+                                       params={"ticker_name": ticker_name})
         if df_latest_date['max'].iloc[0] == None:
             minimum_date = get_naive_datetime(minimum_date)
             if minimum_date is not None:
@@ -513,9 +527,9 @@ class TableValuationMetrics():
     def get_latest_date(ticker_name, db_connection):
         latest_date = None
         check_latest_date = "SELECT MAX (date) FROM {} WHERE ticker=%(ticker_name)s;".format(TABLE_NAME_VALUATION_METRICS)
-        df_latest_date = pd.read_sql_query(check_latest_date,
-                                            params={"ticker_name": ticker_name},
-                                            con=db_connection)
+        df_latest_date = read_db_query(check_latest_date,
+                                       db_connection,
+                                       params={"ticker_name": ticker_name})
         if df_latest_date['max'].iloc[0] != None:
             latest_date = pd.to_datetime(df_latest_date['max'], utc=True).iloc[0]
         return latest_date
@@ -529,10 +543,9 @@ class TableValuationMetrics():
         if minimum_date != None:
             query_str += " AND date >= '{}'".format(minimum_date.strftime("%Y-%m-%d"))
 
-        with db_connection.connect() as connection:
-            df_valuation_metrics = pd.read_sql_query(query_str, con=connection)
-            df_valuation_metrics['date'] = pd.to_datetime(df_valuation_metrics['date'])
-            df_valuation_metrics = df_valuation_metrics.sort_values('date')
+        df_valuation_metrics = read_db_query(query_str, db_connection)
+        df_valuation_metrics['date'] = pd.to_datetime(df_valuation_metrics['date'])
+        df_valuation_metrics = df_valuation_metrics.sort_values('date')
         return df_valuation_metrics
 
     def append(ticker_name, df_valuation_metrics, db_connection):
@@ -554,9 +567,8 @@ class TableValuationMetrics():
                                                'ev_fcf',
                                                'ev_nopat']].to_dict(orient='records')
             insert_statement = INSERT_STATEMENT_VALUATION_METRICS
-            with db_connection.begin() as connection:
-                connection.execute(insert_statement, data_dicts)
-                print('Added {} for {}.'.format(TABLE_NAME_VALUATION_METRICS, ticker_name))
+            execute_db_write(db_connection, insert_statement, data_dicts)
+            print('Added {} for {}.'.format(TABLE_NAME_VALUATION_METRICS, ticker_name))
         DataUpdates.add_data_update(ticker_name, TABLE_NAME_VALUATION_METRICS, db_connection)
 
     def update(ticker_name, db_connection):
@@ -655,10 +667,11 @@ def main():
     parser.add_argument('-u', '--force_update_table', required=False, default=None, help='Force the update of the given table of a ticker.')
 
     args = parser.parse_args()
-    db_connection = get_db_connection()
+    db_engine = get_db_engine()
 
-    if args.force_update_table:
-        force_update_ticker(args.ticker, args.force_update_table, db_connection)
+    with db_engine.connect() as db_connection:
+        if args.force_update_table:
+            force_update_ticker(args.ticker, args.force_update_table, db_connection)
 
 if __name__ == "__main__":
     main()
