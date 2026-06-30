@@ -12,6 +12,7 @@ import argparse
 ALPHAVANTAGE_QUERY_URL = 'https://www.alphavantage.co/query'
 MAX_REQUEST_ATTEMPTS = 3
 RETRY_DELAY_SECONDS = 1
+REQUEST_SESSION = requests.Session()
 
 functions = [
     'BALANCE_SHEET',
@@ -63,7 +64,7 @@ def request_data(function, symbol, params:dict=None):
 
     data = {}
     for attempt in range(MAX_REQUEST_ATTEMPTS):
-        response = requests.get(ALPHAVANTAGE_QUERY_URL, params=request_params, timeout=30)
+        response = REQUEST_SESSION.get(ALPHAVANTAGE_QUERY_URL, params=request_params, timeout=30)
         response.raise_for_status()
         data = response.json()
 
@@ -95,7 +96,7 @@ def request_index_catalog():
     params = {'function': 'INDEX_CATALOG',
               'datatype': 'json',
               'apikey': get_api_key()}
-    r = requests.get(ALPHAVANTAGE_QUERY_URL, params=params, timeout=30)
+    r = REQUEST_SESSION.get(ALPHAVANTAGE_QUERY_URL, params=params, timeout=30)
     r.raise_for_status()
     data = r.json()
     return data
