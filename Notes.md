@@ -1,8 +1,10 @@
 # Notes
 
+The project stores computed tables in local PostgreSQL. Raw AlphaVantage API payloads are cached as JSON under `data/AlphaVantage/`.
+
 ## Raw Data Layer
 
-Store raw AlphaVantage payloads.
+Store normalized rows derived from raw AlphaVantage payloads.
 Tables:
 - income_statement
 - balance_sheet
