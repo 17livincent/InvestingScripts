@@ -1,45 +1,40 @@
 # AGENTS.md
 
-`InvestingScripts`.
+Repo-specific context for `InvestingScripts`.
 
-## Project Shape
+## Repo Purpose
 
-Python stock-analysis scripts that rank `watchlists.json` companies by quality, growth, valuation, and risk. AlphaVantage payloads are cached in `data/AlphaVantage/`; calculated tables go to Supabase; comparison JSON/PNG outputs go under `data/`.
+Python stock-analysis scripts rank `watchlists.json` companies using AlphaVantage input, local PostgreSQL calculated tables, and generated comparison outputs under `data/`.
 
-Key files:
+## Files And Data Surfaces
 
-- `RequestAndSave.py`: AlphaVantage request/cache helpers.
-- `DBConnection.py`: Supabase SQLAlchemy engine.
-- `InitDB.py`: table definitions, inserts, initialization.
-- `TickerData.py`: per-ticker update orchestration.
-- `OperationalMetrics.py`: fundamentals and operational metrics.
-- `ValuationMetrics.py`: valuation metrics from fundamentals, prices, and shares.
-- `TimeSeriesDaily.py`: cached `TIME_SERIES_DAILY_ADJUSTED` stock data for graphing.
-- `IndexData.py`: cached index catalog plus uncached daily `INDEX_DATA`.
-- `Comparisons.py`: watchlist updates, stock/index daily charts, scored comparison outputs.
+- `RequestAndSave.py`: AlphaVantage requests; raw cache under `data/AlphaVantage/<TICKER>/`.
+- `docker-compose.yml`: local PostgreSQL service definition.
+- `DBConnection.py`: local PostgreSQL engine; reads `.env`, using `INVESTING_DATABASE_URL` first, then `INVESTING_DB_*` or `POSTGRES_*`.
+- `InitDB.py`: local PostgreSQL schema.
+- `TickerData.py`: updates database tables and `data_updates`.
+- `OperationalMetrics.py` / `ValuationMetrics.py`: calculated metrics stored in PostgreSQL.
+- `TimeSeriesDaily.py`: stock daily adjusted cache for charts.
+- `IndexData.py`: index catalog plus index daily data for benchmark charts.
+- `Comparisons.py`: `data/*_Comparison.json`, chart PNGs, and daily snapshots.
+- `watchlists.json`: stock tickers plus optional AlphaVantage index symbols that are chart-only.
 
-## Runtime And Side Effects
+## Local Runtime Facts
 
-- Use `uv run ...`; common commands are `InitDB.py`, `TickerData.py`, and `Comparisons.py`.
-- Note `Comparisons.py` without `--skip_update` may take a long time.
-- Treat AlphaVantage calls and Supabase writes as real side effects.
-- Force a table refresh with `uv run TickerData.py -t <TICKER> -u <TABLE_NAME>`; valid names come from `InitDB.TABLE_NAMES`.
+- Use `uv run ...`.
+- `.env.example` is the commit-safe template for local database settings.
+- AlphaVantage API key comes from `pass show Keys/AlphaVantagePremium`.
 
-## Data
+## Side Effects And Guardrails
 
-- `data/AlphaVantage/<TICKER>/*.json`: cached company, fundamentals, shares, weekly prices, daily adjusted prices.
-- `data/AlphaVantage/<TICKER>/TIME_SERIES_DAILY_ADJUSTED.json`: stock daily cache.
-- `data/AlphaVantage/INDEX_CATALOG.json`: index-symbol catalog.
-- `data/*_Comparison.json`: scored watchlist rows.
-- `data/* Operational Comparisons.png`, `data/* Valuation Comparisons.png`, `data/* Time Series Daily Comparisons.png`: charts.
-- `data/daily_snapshots/YYYY-MM-DD/`: daily-update snapshots dated by local US Pacific time.
+- AlphaVantage calls can hit API/rate limits.
+- Local PostgreSQL writes are real side effects.
+- Generated `data/` artifacts and local JSON files are ignored; do not commit them unless explicitly requested.
+- Saved JSON fallback behavior can mask AlphaVantage request failures.
 
-`watchlists.json` entries may be stocks or AlphaVantage index symbols such as `SPX`; indexes are only used in daily performance charts and are not scored.
-
-## Caveats
+## Sharp Edges
 
 - Date handling mixes quarter statement dates, weekly prices, daily stock prices, daily index dates, and timezone-aware update timestamps.
 - Some SQL strings interpolate ticker values; parameterize new user-input paths.
-- `RequestAndSave.get_api_key()` strips the AlphaVantage key from `pass` output.
-- AlphaVantage errors/rate limits fall back to saved files when possible; missing caches can raise `FileNotFoundError`.
-- Generated `data/` artifacts and local JSON files are ignored; do not commit them unless explicitly requested.
+- Index daily data is parsed for charts but not persisted.
+- Missing local caches can raise `FileNotFoundError`.
