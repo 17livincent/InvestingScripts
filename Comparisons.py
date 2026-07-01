@@ -371,9 +371,10 @@ def get_scores(df_watchlist_comparison):
                                                                                 df_watchlist_comparison_clean['ev_ebit_2yr_median'])
     df_watchlist_comparison_clean['ev_fcf_discount'] = get_discount_to_median(df_watchlist_comparison_clean['ev_fcf'],
                                                                                df_watchlist_comparison_clean['ev_fcf_2yr_median'])
-    df_valuation_score_components['pe_ttm_discount_perc_rank'] = df_watchlist_comparison_clean['pe_ttm_discount'].rank(pct=True, ascending=False) * 100
-    df_valuation_score_components['ev_ebit_discount_perc_rank'] = df_watchlist_comparison_clean['ev_ebit_discount'].rank(pct=True, ascending=False) * 100
-    df_valuation_score_components['ev_fcf_discount_perc_rank'] = df_watchlist_comparison_clean['ev_fcf_discount'].rank(pct=True, ascending=False) * 100
+    # Reward tickers whose valuation multiples are above their own 2-year medians.
+    df_valuation_score_components['pe_ttm_discount_perc_rank'] = df_watchlist_comparison_clean['pe_ttm_discount'].rank(pct=True, ascending=True) * 100
+    df_valuation_score_components['ev_ebit_discount_perc_rank'] = df_watchlist_comparison_clean['ev_ebit_discount'].rank(pct=True, ascending=True) * 100
+    df_valuation_score_components['ev_fcf_discount_perc_rank'] = df_watchlist_comparison_clean['ev_fcf_discount'].rank(pct=True, ascending=True) * 100
 
     df_watchlist_comparison_clean['valuation_score'] = get_weighted_score(df_valuation_score_components, VALUATION_WEIGHTS)
     df_watchlist_comparison_clean['valuation_coverage'] = get_component_coverage(df_valuation_score_components)

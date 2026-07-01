@@ -276,3 +276,8 @@ The scored output includes:
 - `classification`
 
 Scores are percentile ranks within the current watchlist. They are useful for relative screening, not as absolute market ratings.
+
+The valuation score combines two ideas:
+
+- Lower current valuation multiples rank better for `pe_ttm`, `ev_ebit`, and `ev_fcf`.
+- The `*_discount` fields compare the current multiple with the ticker's own two-year median as `current multiple / two-year median multiple`. Values above `1.0` mean the current multiple is above its two-year median, and these higher ratios rank better in the valuation score.
