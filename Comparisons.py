@@ -124,37 +124,37 @@ time_series_figure = {'graphs': time_series_graphs, 'title': 'Time Series Daily 
 risk_figure = {'graphs': risk_graphs, 'title': 'Risk Comparisons'}
 
 QUALITY_WEIGHTS = pd.Series({
-    'ttm_roic_perc_rank': 0.45,
-    'ttm_operating_margin_perc_rank': 0.2,
-    'ttm_fcf_margin_perc_rank': 0.15,
-    'quality_consistency_perc_rank': 0.2
+    'ttm_roic_perc_rank': 0.35,
+    'ttm_operating_margin_perc_rank': 0.20,
+    'ttm_fcf_margin_perc_rank': 0.20,
+    'quality_consistency_perc_rank': 0.25
 })
 
 GROWTH_WEIGHTS = pd.Series({
-    'revenue_growth_yoy_perc_rank': 0.6,
-    'revenue_growth_yoy_3yr_avg_perc_rank': 0.4
+    'revenue_growth_yoy_perc_rank': 0.30,
+    'revenue_growth_yoy_3yr_avg_perc_rank': 0.70
 })
 
 VALUATION_WEIGHTS = pd.Series({
-    'pe_ttm_perc_rank': 0.2333,
-    'ev_ebit_perc_rank': 0.2333,
-    'ev_fcf_perc_rank': 0.2333,
-    'pe_ttm_discount_perc_rank': 0.1,
-    'ev_ebit_discount_perc_rank': 0.1,
-    'ev_fcf_discount_perc_rank': 0.1
+    'pe_ttm_perc_rank': 0.15,
+    'ev_ebit_perc_rank': 0.20,
+    'ev_fcf_perc_rank': 0.25,
+    'pe_ttm_discount_perc_rank': 0.10,
+    'ev_ebit_discount_perc_rank': 0.13,
+    'ev_fcf_discount_perc_rank': 0.17
 })
 
 RISK_WEIGHTS = pd.Series({
-    'debt_to_equity_perc_rank': 0.5,
-    'ttm_fcf_margin_perc_rank': 0.3,
-    'ttm_operating_margin_perc_rank': 0.2
+    'debt_to_equity_perc_rank': 0.40,
+    'ttm_fcf_margin_perc_rank': 0.40,
+    'ttm_operating_margin_perc_rank': 0.20
 })
 
 TOTAL_SCORE_WEIGHTS = {
-    'quality_score': 0.4,
-    'growth_score': 0.2,
-    'valuation_score': 0.2,
-    'risk_score': 0.2
+    'quality_score': 0.45,
+    'growth_score': 0.10,
+    'valuation_score': 0.25,
+    'risk_score': 0.20
 }
 
 def create_graph_figures(title, figure_def, df_comparison, df_data):
@@ -371,9 +371,9 @@ def get_scores(df_watchlist_comparison):
                                                                                 df_watchlist_comparison_clean['ev_ebit_2yr_median'])
     df_watchlist_comparison_clean['ev_fcf_discount'] = get_discount_to_median(df_watchlist_comparison_clean['ev_fcf'],
                                                                                df_watchlist_comparison_clean['ev_fcf_2yr_median'])
-    df_valuation_score_components['pe_ttm_discount_perc_rank'] = df_watchlist_comparison_clean['pe_ttm_discount'].rank(pct=True, ascending=True) * 100
-    df_valuation_score_components['ev_ebit_discount_perc_rank'] = df_watchlist_comparison_clean['ev_ebit_discount'].rank(pct=True, ascending=True) * 100
-    df_valuation_score_components['ev_fcf_discount_perc_rank'] = df_watchlist_comparison_clean['ev_fcf_discount'].rank(pct=True, ascending=True) * 100
+    df_valuation_score_components['pe_ttm_discount_perc_rank'] = df_watchlist_comparison_clean['pe_ttm_discount'].rank(pct=True, ascending=False) * 100
+    df_valuation_score_components['ev_ebit_discount_perc_rank'] = df_watchlist_comparison_clean['ev_ebit_discount'].rank(pct=True, ascending=False) * 100
+    df_valuation_score_components['ev_fcf_discount_perc_rank'] = df_watchlist_comparison_clean['ev_fcf_discount'].rank(pct=True, ascending=False) * 100
 
     df_watchlist_comparison_clean['valuation_score'] = get_weighted_score(df_valuation_score_components, VALUATION_WEIGHTS)
     df_watchlist_comparison_clean['valuation_coverage'] = get_component_coverage(df_valuation_score_components)
