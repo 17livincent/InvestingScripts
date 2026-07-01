@@ -155,27 +155,43 @@
         "NEE",
         "SO"
     ],
-    "Healthcare Devices and Tools": [
+    "AI Power and Nuclear": [
         "SPX",
         "NDX",
-        "ISRG",
-        "SYK",
-        "ABT",
-        "TMO",
-        "DHR",
-        "BSX",
-        "MDT",
-        "EW",
-        "RMD",
-        "IDXX"
+        "GEV",
+        "BE",
+        "OKLO",
+        "SMR",
+        "BWXT",
+        "CEG",
+        "VST",
+        "NRG",
+        "ETN",
+        "VRT"
     ],
-    "Diagnostics and Life Science Growth": [
+    "Defense Autonomy And Munitions": [
         "SPX",
         "NDX",
-        "VCYT",
-        "DXCM",
-        "NTRA",
-        "GH",
-        "IQV"
+        "LMT",
+        "RTX",
+        "NOC",
+        "GD",
+        "LHX",
+        "AVAV",
+        "KTOS",
+        "LDOS",
+        "TDY"
+    ],
+    "Critical Materials And Electrification Inputs": [
+        "SPX",
+        "NDX",
+        "FCX",
+        "SCCO",
+        "TECK",
+        "CCJ",
+        "LEU",
+        "MP",
+        "ATI",
+        "CRS"
     ]
 }
