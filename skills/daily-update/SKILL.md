@@ -9,7 +9,7 @@ Use this skill for daily watchlist updates and report-style summaries from the l
 
 ## Update Run
 
-- `uv run Comparsions.py`.  Include `--skip_update` or `--watchlist` if the user requests.
+- `uv run Comparisons.py`.  Include `--skip_update` or `--watchlist` if the user requests.
 - Describe the log prints from the script as they occur.
 
 ## Snapshot And Trends
@@ -24,6 +24,8 @@ After a successful fresh update, create the daily snapshot with:
 For changes, compare against the most recent prior snapshot before today, looking back up to 14 days. Note clearly when no prior snapshot is available.
 
 Trend notes should focus on rank, `total_score`, classification, component-score moves, bucket changes, and newly missing/available/incomplete tickers.
+
+The snapshot folder name should be based on the local date.
 
 ## Reading Outputs
 
