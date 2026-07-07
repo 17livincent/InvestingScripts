@@ -1,0 +1,80 @@
+{
+  "Quality-at-Reasonable-Price": {
+    "description": "Current default scoring profile used by Comparisons.py. This is quality-led, with valuation as an important but secondary component.",
+    "forward_metrics_enabled": false,
+    "valuation_discount_direction": "higher_current_to_median_ratio_scores_better_current_behavior",
+    "total_score_weights": {
+      "quality_score": 0.45,
+      "growth_score": 0.1,
+      "valuation_score": 0.25,
+      "risk_score": 0.2
+    },
+    "quality_weights": {
+      "ttm_roic_perc_rank": 0.35,
+      "ttm_operating_margin_perc_rank": 0.2,
+      "ttm_fcf_margin_perc_rank": 0.2,
+      "quality_consistency_perc_rank": 0.25
+    },
+    "growth_weights": {
+      "revenue_growth_yoy_perc_rank": 0.3,
+      "revenue_growth_yoy_3yr_avg_perc_rank": 0.7
+    },
+    "valuation_weights": {
+      "pe_ttm_perc_rank": 0.15,
+      "ev_ebit_perc_rank": 0.2,
+      "ev_fcf_perc_rank": 0.25,
+      "pe_ttm_discount_perc_rank": 0.1,
+      "ev_ebit_discount_perc_rank": 0.13,
+      "ev_fcf_discount_perc_rank": 0.17
+    },
+    "risk_weights": {
+      "debt_to_equity_perc_rank": 0.4,
+      "ttm_fcf_margin_perc_rank": 0.4,
+      "ttm_operating_margin_perc_rank": 0.2
+    }
+  },
+  "Value-Oriented": {
+    "description": "Recommended value-investing profile. This increases valuation weight, reduces growth weight, uses ForwardPE as a first forward-looking metric, and treats lower current-to-median valuation ratios as better.",
+    "forward_metrics_enabled": true,
+    "valuation_discount_direction": "lower_current_to_median_ratio_scores_better",
+    "total_score_weights": {
+      "quality_score": 0.35,
+      "growth_score": 0.05,
+      "valuation_score": 0.4,
+      "risk_score": 0.2
+    },
+    "quality_weights": {
+      "ttm_roic_perc_rank": 0.35,
+      "ttm_operating_margin_perc_rank": 0.2,
+      "ttm_fcf_margin_perc_rank": 0.2,
+      "quality_consistency_perc_rank": 0.25
+    },
+    "growth_weights": {
+      "revenue_growth_yoy_perc_rank": 0.3,
+      "revenue_growth_yoy_3yr_avg_perc_rank": 0.7
+    },
+    "valuation_weights": {
+      "pe_ttm_perc_rank": 0.1,
+      "ev_ebit_perc_rank": 0.18,
+      "ev_fcf_perc_rank": 0.22,
+      "pe_ttm_discount_perc_rank": 0.0833,
+      "ev_ebit_discount_perc_rank": 0.0833,
+      "ev_fcf_discount_perc_rank": 0.0834,
+      "forward_pe_perc_rank": 0.25
+    },
+    "risk_weights": {
+      "debt_to_equity_perc_rank": 0.4,
+      "ttm_fcf_margin_perc_rank": 0.4,
+      "ttm_operating_margin_perc_rank": 0.2
+    },
+    "forward_metric_rules": {
+      "forward_pe_source": "AlphaVantage OVERVIEW.ForwardPE",
+      "implied_forward_eps_growth_formula": "pe_ttm / forward_pe - 1",
+      "peak_earnings_warning": {
+        "enabled": true,
+        "condition": "implied_forward_eps_growth < -0.15 and ttm_roic is top quartile",
+        "recommended_action": "reduce valuation_score modestly or flag for review"
+      }
+    }
+  }
+}

@@ -21,6 +21,7 @@ TIME_SERIES_TIME_FRAME_WEEKS = 26
 OPERATIONAL_AVG_YEARS = 3
 VALUATION_MEDIAN_YEARS = 2
 MIN_HISTORY_OBSERVATIONS = 4
+SCORING_WEIGHTS_FILE = 'scoring_weights.json'
 
 time_frames = {'ttm_roic': OPERATIONAL_TIME_FRAME_WEEKS,
                'revenue_growth_yoy': OPERATIONAL_TIME_FRAME_WEEKS,
@@ -156,6 +157,39 @@ TOTAL_SCORE_WEIGHTS = {
     'valuation_score': 0.25,
     'risk_score': 0.20
 }
+
+DEFAULT_SCORING_PROFILE = {
+    'quality_weights': QUALITY_WEIGHTS.to_dict(),
+    'growth_weights': GROWTH_WEIGHTS.to_dict(),
+    'valuation_weights': VALUATION_WEIGHTS.to_dict(),
+    'risk_weights': RISK_WEIGHTS.to_dict(),
+    'total_score_weights': TOTAL_SCORE_WEIGHTS,
+    'valuation_discount_direction': 'higher_current_to_median_ratio_scores_better_current_behavior'
+}
+
+def get_scoring_profile(profile_name=None, scoring_weights_file=SCORING_WEIGHTS_FILE):
+    with open(scoring_weights_file, 'r') as weights_file:
+        scoring_profiles = json.load(weights_file)
+
+    if not scoring_profiles:
+        raise ValueError('{} does not contain any scoring profiles.'.format(scoring_weights_file))
+
+    default_profile_name = next(iter(scoring_profiles))
+    selected_profile_name = profile_name if profile_name in scoring_profiles else default_profile_name
+
+    if profile_name and profile_name not in scoring_profiles:
+        print("WARNING: scoring weights profile '{}' was not found. Using '{}'.".format(profile_name,
+                                                                                       selected_profile_name))
+
+    print("Using scoring weights profile '{}'.".format(selected_profile_name))
+
+    return selected_profile_name, scoring_profiles[selected_profile_name]
+
+def get_scoring_weights(scoring_profile, key, default_weights):
+    if hasattr(default_weights, 'to_dict'):
+        default_weights = default_weights.to_dict()
+
+    return pd.Series(scoring_profile.get(key, default_weights))
 
 def create_graph_figures(title, figure_def, df_comparison, df_data):
     graphs = figure_def['graphs']
@@ -340,7 +374,17 @@ def get_score_classification(row):
 
     return classification
 
-def get_scores(df_watchlist_comparison):
+def get_scores(df_watchlist_comparison, scoring_profile=None):
+    scoring_profile = scoring_profile or DEFAULT_SCORING_PROFILE
+    quality_weights = get_scoring_weights(scoring_profile, 'quality_weights', QUALITY_WEIGHTS)
+    growth_weights = get_scoring_weights(scoring_profile, 'growth_weights', GROWTH_WEIGHTS)
+    valuation_weights = get_scoring_weights(scoring_profile, 'valuation_weights', VALUATION_WEIGHTS)
+    risk_weights = get_scoring_weights(scoring_profile, 'risk_weights', RISK_WEIGHTS)
+    total_score_weights = get_scoring_weights(scoring_profile, 'total_score_weights', TOTAL_SCORE_WEIGHTS)
+    discount_rank_ascending = scoring_profile.get(
+        'valuation_discount_direction',
+        DEFAULT_SCORING_PROFILE['valuation_discount_direction']) != 'lower_current_to_median_ratio_scores_better'
+
     df_watchlist_comparison_clean = df_watchlist_comparison.copy()
 
     df_watchlist_comparison_clean['debt_to_equity'] = df_watchlist_comparison_clean['debt_to_equity'].where(df_watchlist_comparison_clean['debt_to_equity'] >= 0, 5).clip(upper=5)
@@ -352,14 +396,14 @@ def get_scores(df_watchlist_comparison):
     df_quality_score_components['quality_consistency_perc_rank'] = (df_watchlist_comparison_clean['ttm_roic_3yr_avg'] -
                                                                     df_watchlist_comparison_clean['ttm_roic_3yr_std']).rank(pct=True) * 100
 
-    df_watchlist_comparison_clean['quality_score'] = get_weighted_score(df_quality_score_components, QUALITY_WEIGHTS)
+    df_watchlist_comparison_clean['quality_score'] = get_weighted_score(df_quality_score_components, quality_weights)
     df_watchlist_comparison_clean['quality_coverage'] = get_component_coverage(df_quality_score_components)
 
     df_growth_score_components = pd.DataFrame()
     df_growth_score_components['revenue_growth_yoy_perc_rank'] = df_watchlist_comparison_clean['revenue_growth_yoy'].rank(pct=True) * 100
     df_growth_score_components['revenue_growth_yoy_3yr_avg_perc_rank'] = df_watchlist_comparison_clean['revenue_growth_yoy_3yr_avg'].rank(pct=True) * 100
 
-    df_watchlist_comparison_clean['growth_score'] = get_weighted_score(df_growth_score_components, GROWTH_WEIGHTS)
+    df_watchlist_comparison_clean['growth_score'] = get_weighted_score(df_growth_score_components, growth_weights)
 
     df_valuation_score_components = pd.DataFrame()
     df_valuation_score_components['pe_ttm_perc_rank'] = df_watchlist_comparison_clean['pe_ttm'].rank(pct=True, ascending=False) * 100
@@ -371,12 +415,11 @@ def get_scores(df_watchlist_comparison):
                                                                                 df_watchlist_comparison_clean['ev_ebit_2yr_median'])
     df_watchlist_comparison_clean['ev_fcf_discount'] = get_discount_to_median(df_watchlist_comparison_clean['ev_fcf'],
                                                                                df_watchlist_comparison_clean['ev_fcf_2yr_median'])
-    # Reward tickers whose valuation multiples are above their own 2-year medians.
-    df_valuation_score_components['pe_ttm_discount_perc_rank'] = df_watchlist_comparison_clean['pe_ttm_discount'].rank(pct=True, ascending=True) * 100
-    df_valuation_score_components['ev_ebit_discount_perc_rank'] = df_watchlist_comparison_clean['ev_ebit_discount'].rank(pct=True, ascending=True) * 100
-    df_valuation_score_components['ev_fcf_discount_perc_rank'] = df_watchlist_comparison_clean['ev_fcf_discount'].rank(pct=True, ascending=True) * 100
+    df_valuation_score_components['pe_ttm_discount_perc_rank'] = df_watchlist_comparison_clean['pe_ttm_discount'].rank(pct=True, ascending=discount_rank_ascending) * 100
+    df_valuation_score_components['ev_ebit_discount_perc_rank'] = df_watchlist_comparison_clean['ev_ebit_discount'].rank(pct=True, ascending=discount_rank_ascending) * 100
+    df_valuation_score_components['ev_fcf_discount_perc_rank'] = df_watchlist_comparison_clean['ev_fcf_discount'].rank(pct=True, ascending=discount_rank_ascending) * 100
 
-    df_watchlist_comparison_clean['valuation_score'] = get_weighted_score(df_valuation_score_components, VALUATION_WEIGHTS)
+    df_watchlist_comparison_clean['valuation_score'] = get_weighted_score(df_valuation_score_components, valuation_weights)
     df_watchlist_comparison_clean['valuation_coverage'] = get_component_coverage(df_valuation_score_components)
 
     df_risk_score_components = pd.DataFrame()
@@ -386,7 +429,7 @@ def get_scores(df_watchlist_comparison):
     df_risk_score_components['ttm_fcf_margin_perc_rank'] = df_watchlist_comparison_clean['ttm_fcf_margin'].rank(pct=True).mul(100)
     df_risk_score_components['ttm_operating_margin_perc_rank'] = df_watchlist_comparison_clean['ttm_operating_margin'].rank(pct=True).mul(100)
 
-    df_watchlist_comparison_clean['risk_score'] = get_weighted_score(df_risk_score_components, RISK_WEIGHTS)
+    df_watchlist_comparison_clean['risk_score'] = get_weighted_score(df_risk_score_components, risk_weights)
     df_watchlist_comparison_clean['history_coverage'] = get_component_coverage(
         df_watchlist_comparison_clean[['ttm_roic_3yr_avg',
                                        'ttm_roic_3yr_std',
@@ -401,10 +444,8 @@ def get_scores(df_watchlist_comparison):
     score_columns = ['quality_score', 'growth_score', 'valuation_score', 'risk_score']
     df_watchlist_comparison_clean[score_columns] = df_watchlist_comparison_clean[score_columns].fillna(0)
 
-    df_watchlist_comparison_clean['total_score'] = (TOTAL_SCORE_WEIGHTS['quality_score'] * df_watchlist_comparison_clean['quality_score'] +
-                                              TOTAL_SCORE_WEIGHTS['growth_score'] * df_watchlist_comparison_clean['growth_score'] +
-                                              TOTAL_SCORE_WEIGHTS['valuation_score'] * df_watchlist_comparison_clean['valuation_score'] +
-                                              TOTAL_SCORE_WEIGHTS['risk_score'] * df_watchlist_comparison_clean['risk_score'])
+    df_watchlist_comparison_clean['total_score'] = get_weighted_score(df_watchlist_comparison_clean[score_columns],
+                                                                      total_score_weights)
 
     df_watchlist_comparison_clean['classification'] = df_watchlist_comparison_clean.apply(get_score_classification, axis=1)
 
@@ -412,7 +453,7 @@ def get_scores(df_watchlist_comparison):
 
     return df_watchlist_comparison_clean
 
-def run_comparisons(args, db_connection):
+def run_comparisons(args, db_connection, scoring_profile):
     with open('watchlists.json', 'r') as watchlists_file:
         watchlists_json = json.load(watchlists_file)
 
@@ -535,7 +576,7 @@ def run_comparisons(args, db_connection):
                     # print('Rank by greatest {}:'.format('ttm_roic'))
                     # print(df_watchlist_stock_comparison.to_string())
 
-                    df_watchlist_stock_comparison = get_scores(df_watchlist_stock_comparison)
+                    df_watchlist_stock_comparison = get_scores(df_watchlist_stock_comparison, scoring_profile)
 
                     df_comparison_summary = df_watchlist_stock_comparison[['ticker',
                                                                            'ttm_roic',
@@ -565,12 +606,18 @@ def main():
     parser = argparse.ArgumentParser(prog='CalculateFundamentals.py', description='Analyze a company\'s fundamentals.')
     parser.add_argument('-s', '--skip_update', required=False, action='store_true', default=False, help='Skip the update step.')
     parser.add_argument('-n', '--watchlist', required=False, default=None, help='Specific watchlist to compare.')
+    parser.add_argument('--scoring_weights',
+                        '--scoring-weights',
+                        required=False,
+                        default=None,
+                        help='Scoring weights profile key from scoring_weights.json.')
 
     args = parser.parse_args()
+    scoring_profile_name, scoring_profile = get_scoring_profile(args.scoring_weights)
 
     db_engine = get_db_engine()
     with db_engine.connect() as db_connection:
-        run_comparisons(args, db_connection)
+        run_comparisons(args, db_connection, scoring_profile)
 
 if __name__ == "__main__":
     main()

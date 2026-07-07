@@ -1,6 +1,6 @@
 # InvestingScripts
 
-A set of Python scripts to analyze stocks.
+A set of Python scripts to analyze stocks for value investing.
 Data is pulled from the AlphaVantage REST API. The API key is passed in via GNU `pass`.
 
 ## Local PostgreSQL
