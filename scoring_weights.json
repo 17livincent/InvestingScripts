@@ -54,8 +54,8 @@
       "quality_consistency_perc_rank": 0.25
     },
     "growth_weights": {
-      "revenue_growth_yoy_perc_rank": 0.3,
-      "revenue_growth_yoy_3yr_avg_perc_rank": 0.7
+      "revenue_growth_yoy_perc_rank": 0.2,
+      "revenue_growth_yoy_3yr_avg_perc_rank": 0.8
     },
     "valuation_weights": {
       "pe_ttm_perc_rank": 0.1,
