@@ -11,5 +11,6 @@ dependencies = [
     "matplotlib",
     "sqlalchemy",
     "psycopg2-binary",
-    "tabulate"
+    "tabulate",
+    "ruff"
 ]

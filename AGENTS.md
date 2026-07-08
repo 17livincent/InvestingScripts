@@ -25,6 +25,10 @@ Python stock-analysis scripts rank `watchlists.json` companies using AlphaVantag
 - `.env.example` is the commit-safe template for local database settings.
 - AlphaVantage API key comes from `pass show Keys/AlphaVantagePremium`.
 
+## Formatting
+
+`uvx ruff format ...`
+
 ## Side Effects And Guardrails
 
 - AlphaVantage calls can hit API/rate limits.

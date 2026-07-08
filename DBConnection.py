@@ -14,7 +14,11 @@ def load_env_file(env_file_path=ENV_FILE_PATH):
     with env_file_path.open("r") as env_file:
         for line in env_file:
             stripped_line = line.strip()
-            if not stripped_line or stripped_line.startswith("#") or "=" not in stripped_line:
+            if (
+                not stripped_line
+                or stripped_line.startswith("#")
+                or "=" not in stripped_line
+            ):
                 continue
 
             key, value = stripped_line.split("=", 1)
@@ -43,8 +47,12 @@ def get_db_engine():
 
     connection_url = URL.create(
         "postgresql+psycopg2",
-        username=get_env_value("INVESTING_DB_USER", "POSTGRES_USER", default="investing"),
-        password=get_env_value("INVESTING_DB_PASSWORD", "POSTGRES_PASSWORD", default="investing"),
+        username=get_env_value(
+            "INVESTING_DB_USER", "POSTGRES_USER", default="investing"
+        ),
+        password=get_env_value(
+            "INVESTING_DB_PASSWORD", "POSTGRES_PASSWORD", default="investing"
+        ),
         host=get_env_value("INVESTING_DB_HOST", "POSTGRES_HOST", default="localhost"),
         port=int(get_env_value("INVESTING_DB_PORT", "POSTGRES_PORT", default="5432")),
         database=get_env_value("INVESTING_DB_NAME", "POSTGRES_DB", default="investing"),
