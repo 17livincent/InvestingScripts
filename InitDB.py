@@ -12,6 +12,7 @@ Tables:
     - prices_weekly         --> from raw AlphaVantage JSON
     - shares_outstanding    --> from raw AlphaVantage JSON
     - valuation_metrics     --> calculated from all raw tables
+    - forward_metrics       --> from AlphaVantage OVERVIEW analyst fields
     - companies             --> data of recorded companies/tickers
     - report_dates          --> next earnings report date
     - data_updates          --> records of when the last ticker*table update was made
@@ -24,6 +25,7 @@ TABLE_NAME_SHARES_OUTSTANDING = "shares_outstanding"
 TABLE_NAME_PRICES_WEEKLY = "prices_weekly"
 TABLE_NAME_DATA_UPDATES = "data_updates"
 TABLE_NAME_VALUATION_METRICS = "valuation_metrics"
+TABLE_NAME_FORWARD_METRICS = "forward_metrics"
 TABLE_NAME_REPORT_DATES = "report_dates"
 
 TABLE_NAMES = [
@@ -33,6 +35,7 @@ TABLE_NAMES = [
     TABLE_NAME_SHARES_OUTSTANDING,
     TABLE_NAME_PRICES_WEEKLY,
     TABLE_NAME_VALUATION_METRICS,
+    TABLE_NAME_FORWARD_METRICS,
 ]
 
 TABLE_COMPANIES_DICT = {
@@ -44,6 +47,25 @@ TABLE_COMPANIES_DICT = {
     "country": "",
     "market_cap_latest": "",
 }
+
+CREATE_TABLE_FORWARD_METRICS = """
+CREATE TABLE IF NOT EXISTS forward_metrics (
+    ticker TEXT NOT NULL,
+    date DATE NOT NULL,
+
+    forward_pe DOUBLE PRECISION,
+    implied_forward_eps_growth DOUBLE PRECISION,
+    source TEXT,
+    updated_at TIMESTAMP,
+
+    PRIMARY KEY (ticker, date, source)
+);
+"""
+
+CREATE_INDEX_FORWARD_METRICS_TICKER_DATE_DESC = """
+CREATE INDEX IF NOT EXISTS idx_forward_metrics_ticker_date_desc
+ON forward_metrics(ticker, date DESC);
+"""
 
 TABLES = [
     """
@@ -138,6 +160,7 @@ CREATE TABLE IF NOT EXISTS valuation_metrics (
     PRIMARY KEY (ticker, date)
 );
 """,
+    CREATE_TABLE_FORWARD_METRICS,
     """
 CREATE TABLE IF NOT EXISTS companies (
     ticker TEXT PRIMARY KEY,
@@ -198,6 +221,7 @@ ON prices_weekly(ticker, date DESC);
 CREATE INDEX IF NOT EXISTS idx_valuation_metrics_ticker_date_desc
 ON valuation_metrics(ticker, date DESC);
 """,
+    CREATE_INDEX_FORWARD_METRICS_TICKER_DATE_DESC,
     """
 CREATE INDEX IF NOT EXISTS idx_shares_outstanding_ticker_date_desc
 ON shares_outstanding(ticker, date DESC);
@@ -336,6 +360,25 @@ INSERT_STATEMENT_VALUATION_METRICS = text(
     ":ev_ebit,"
     ":ev_fcf,"
     ":ev_nopat)".format(TABLE_NAME_VALUATION_METRICS)
+)
+
+INSERT_STATEMENT_FORWARD_METRICS = text(
+    "INSERT INTO {} (ticker, "
+    "date,"
+    "forward_pe,"
+    "implied_forward_eps_growth,"
+    "source,"
+    "updated_at)"
+    "VALUES (:ticker,"
+    ":date,"
+    ":forward_pe,"
+    ":implied_forward_eps_growth,"
+    ":source,"
+    ":updated_at) "
+    "ON CONFLICT (ticker, date, source) DO UPDATE SET "
+    "forward_pe = EXCLUDED.forward_pe,"
+    "implied_forward_eps_growth = EXCLUDED.implied_forward_eps_growth,"
+    "updated_at = EXCLUDED.updated_at".format(TABLE_NAME_FORWARD_METRICS)
 )
 
 

@@ -15,6 +15,7 @@ RETRY_DELAY_SECONDS = 1
 REQUEST_SESSION = requests.Session()
 
 functions = [
+    'OVERVIEW',
     'BALANCE_SHEET',
     'CASH_FLOW',
     'INCOME_STATEMENT',
@@ -23,6 +24,7 @@ functions = [
     ]
 
 recency = {
+    'OVERVIEW': 'day',
     'BALANCE_SHEET': 'quarter',
     'CASH_FLOW': 'quarter',
     'INCOME_STATEMENT': 'quarter',

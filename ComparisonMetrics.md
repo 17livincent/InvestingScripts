@@ -269,9 +269,11 @@ The scored output includes:
 - `growth_score`
 - `valuation_score`
 - `risk_score`
+- `forward_score`
 - `total_score`
 - `quality_coverage`
 - `valuation_coverage`
+- `forward_coverage`
 - `history_coverage`
 - `classification`
 
@@ -281,3 +283,10 @@ The valuation score combines two ideas:
 
 - Lower current valuation multiples rank better for `pe_ttm`, `ev_ebit`, and `ev_fcf`.
 - The `*_discount` fields compare the current multiple with the ticker's own two-year median as `current multiple / two-year median multiple`. Values above `1.0` mean the current multiple is above its two-year median, and these higher ratios rank better in the valuation score.
+
+The forward score is a separate, non-ranking overlay. It does not affect `quality_score`, `growth_score`, `valuation_score`, `risk_score`, `total_score`, or `classification`.
+
+- Lower `forward_pe` ranks better and contributes 70% of `forward_score`.
+- Higher `implied_forward_eps_growth` ranks better and contributes 30% of `forward_score`.
+- `implied_forward_eps_growth` is calculated as `pe_ttm / forward_pe - 1`.
+- `forward_coverage` reports how many forward score inputs are available.

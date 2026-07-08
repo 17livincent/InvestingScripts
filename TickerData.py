@@ -9,6 +9,7 @@ from ValuationMetrics import (
     get_timeseries_weekly_adjusted,
     calculate_valuation_metrics,
 )
+from ForwardMetrics import get_forward_metrics_from_overview
 from sqlalchemy import text
 from InitDB import (
     TABLE_NAMES,
@@ -19,12 +20,16 @@ from InitDB import (
     TABLE_NAME_SHARES_OUTSTANDING,
     TABLE_NAME_PRICES_WEEKLY,
     TABLE_NAME_VALUATION_METRICS,
+    TABLE_NAME_FORWARD_METRICS,
     TABLE_NAME_DATA_UPDATES,
     INSERT_STATEMENT_FUNDAMENTALS,
     INSERT_STATEMENT_OPERATIONAL_METRICS,
     INSERT_STATEMENT_SHARES_OUTSTANDING,
     INSERT_STATEMENT_PRICES_WEEKLY,
     INSERT_STATEMENT_VALUATION_METRICS,
+    INSERT_STATEMENT_FORWARD_METRICS,
+    CREATE_TABLE_FORWARD_METRICS,
+    CREATE_INDEX_FORWARD_METRICS_TICKER_DATE_DESC,
 )
 from DBConnection import get_db_engine
 from pathlib import Path
@@ -49,6 +54,7 @@ RECENCY = {
     "shares_outstanding": "quarter",
     "prices_weekly": "week",
     "valuation_metrics": "week",
+    "forward_metrics": "day",
 }
 
 OPERATIONAL_METRICS_RECALC_QUARTERS = 6
@@ -711,7 +717,7 @@ class TableValuationMetrics:
             TABLE_NAME_VALUATION_METRICS, ticker_name
         )
 
-        if minimum_date != None:
+        if minimum_date is not None:
             query_str += " AND date >= '{}'".format(minimum_date.strftime("%Y-%m-%d"))
 
         df_valuation_metrics = read_db_query(query_str, db_connection)
@@ -786,6 +792,111 @@ class TableValuationMetrics:
                 df_valuation_metrics["date"] > minimum_date
             ]
         TableValuationMetrics.append(ticker_name, df_valuation_metrics, db_connection)
+
+
+class TableForwardMetrics:
+    def ensure_table(db_connection):
+        execute_db_write(db_connection, text(CREATE_TABLE_FORWARD_METRICS))
+        execute_db_write(
+            db_connection, text(CREATE_INDEX_FORWARD_METRICS_TICKER_DATE_DESC)
+        )
+
+    def get_from(ticker_name, db_connection, minimum_date: datetime = None):
+        """
+        Get all rows from 'forward_metrics' of the given ticker.
+        """
+        TableForwardMetrics.ensure_table(db_connection)
+        query_str = "SELECT * FROM {} WHERE ticker = '{}'".format(
+            TABLE_NAME_FORWARD_METRICS, ticker_name
+        )
+
+        if minimum_date is not None:
+            query_str += " AND date >= '{}'".format(minimum_date.strftime("%Y-%m-%d"))
+
+        df_forward_metrics = read_db_query(query_str, db_connection)
+        if not df_forward_metrics.empty:
+            df_forward_metrics["date"] = pd.to_datetime(df_forward_metrics["date"])
+            df_forward_metrics = df_forward_metrics.sort_values("date")
+        return df_forward_metrics
+
+    def get_latest_pe_ttm(ticker_name, db_connection):
+        pe_ttm = None
+        query_str = (
+            "SELECT pe_ttm FROM {} WHERE ticker=%(ticker_name)s "
+            "ORDER BY date DESC LIMIT 1".format(TABLE_NAME_VALUATION_METRICS)
+        )
+        df_latest_valuation = read_db_query(
+            query_str, db_connection, params={"ticker_name": ticker_name}
+        )
+
+        if not df_latest_valuation.empty:
+            pe_ttm = df_latest_valuation["pe_ttm"].iloc[0]
+
+        return pe_ttm
+
+    def append(ticker_name, df_forward_metrics, db_connection):
+        """
+        Append rows to 'forward_metrics' of the given ticker.
+        """
+        TableForwardMetrics.ensure_table(db_connection)
+        if df_forward_metrics.empty:
+            print(
+                "No new rows for {} and {}.".format(
+                    TABLE_NAME_FORWARD_METRICS, ticker_name
+                )
+            )
+        else:
+            df_forward_metrics = df_forward_metrics.copy()
+            df_forward_metrics["ticker"] = ticker_name
+            df_forward_metrics["updated_at"] = datetime.now(timezone.utc)
+            df_forward_metrics = df_forward_metrics.astype(object).where(
+                pd.notna(df_forward_metrics), None
+            )
+            data_dicts = df_forward_metrics[
+                [
+                    "ticker",
+                    "date",
+                    "forward_pe",
+                    "implied_forward_eps_growth",
+                    "source",
+                    "updated_at",
+                ]
+            ].to_dict(orient="records")
+            insert_statement = INSERT_STATEMENT_FORWARD_METRICS
+            execute_db_write(db_connection, insert_statement, data_dicts)
+            print("Added {} for {}.".format(TABLE_NAME_FORWARD_METRICS, ticker_name))
+        DataUpdates.add_data_update(
+            ticker_name, TABLE_NAME_FORWARD_METRICS, db_connection
+        )
+
+    def update(ticker_name, db_connection):
+        """
+        Pull OVERVIEW from AlphaVantage and update forward metrics for the ticker.
+        """
+        overview_path = SAVED_JSON_PATH.format(ticker_name, OVERVIEW_FUNCTION_NAME)
+        overview_json = request_data(OVERVIEW_FUNCTION_NAME, ticker_name)
+
+        if "Symbol" in overview_json:
+            Path("data/AlphaVantage/{}".format(ticker_name)).mkdir(exist_ok=True)
+            with open(overview_path, "w") as export_json_file:
+                json.dump(overview_json, export_json_file, indent=4)
+        else:
+            print(
+                "WARNING: Import of {} failed.  {}.  Pulling from saved file if exists.".format(
+                    OVERVIEW_FUNCTION_NAME, overview_json
+                )
+            )
+
+        with open(overview_path, "r") as overview_file_json:
+            overview_json = json.load(overview_file_json)
+
+        pe_ttm = TableForwardMetrics.get_latest_pe_ttm(ticker_name, db_connection)
+        df_forward_metrics = get_forward_metrics_from_overview(
+            overview_json, pe_ttm=pe_ttm
+        )
+        TableForwardMetrics.append(ticker_name, df_forward_metrics, db_connection)
+
+        return df_forward_metrics
 
 
 def add_update_ticker(ticker_name, db_connection, minimum_date: datetime = None):
@@ -877,6 +988,22 @@ def add_update_ticker(ticker_name, db_connection, minimum_date: datetime = None)
         print(
             "Aleady have entries in {} for {}.".format(
                 TABLE_NAME_VALUATION_METRICS, ticker_name
+            )
+        )
+
+    last_update = last_updates.get(TABLE_NAME_FORWARD_METRICS)
+    needs_updated = DataUpdates.check_needs_update(
+        TABLE_NAME_FORWARD_METRICS, last_update
+    )
+    if needs_updated:
+        try:
+            TableForwardMetrics.update(ticker_name, db_connection)
+        except FileNotFoundError as e:
+            print(e)
+    else:
+        print(
+            "Already have entry in {} for {}.".format(
+                TABLE_NAME_FORWARD_METRICS, ticker_name
             )
         )
 

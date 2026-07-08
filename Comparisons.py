@@ -4,7 +4,13 @@ Compare multiple companies.
 
 from OperationalMetrics import get_latest_operational_metrics
 from ValuationMetrics import get_latest_valuation
-from TickerData import TableOperationalMetrics, TableValuationMetrics, add_update_ticker
+from ForwardMetrics import get_latest_forward_metrics
+from TickerData import (
+    TableForwardMetrics,
+    TableOperationalMetrics,
+    TableValuationMetrics,
+    add_update_ticker,
+)
 from TimeSeriesDaily import get_time_series_daily_adjusted
 from IndexData import get_index_list, get_index_time_series_daily
 from DBConnection import get_db_engine
@@ -96,6 +102,25 @@ valuation_graphs = [
     },
 ]
 
+forward_graphs = [
+    {
+        "x": "date",
+        "y": "forward_pe",
+        "type": "line",
+        "percentFormat": False,
+        "grid": True,
+        "table": "forward_metrics",
+    },
+    {
+        "x": "date",
+        "y": "implied_forward_eps_growth",
+        "type": "line",
+        "percentFormat": True,
+        "grid": True,
+        "table": "forward_metrics",
+    },
+]
+
 valuation_scatters = [
     {
         "x": "ev_ebit",
@@ -155,6 +180,7 @@ risk_graphs = [
 
 operational_figure = {"graphs": operational_graphs, "title": "Operational Comparisons"}
 valuation_figure = {"graphs": valuation_graphs, "title": "Valuation Comparisons"}
+forward_figure = {"graphs": forward_graphs, "title": "Forward Metrics Comparisons"}
 valuation_scatters = {"graphs": valuation_scatters, "title": "Valuation Scatters"}
 time_series_figure = {
     "graphs": time_series_graphs,
@@ -194,6 +220,13 @@ RISK_WEIGHTS = pd.Series(
     }
 )
 
+FORWARD_SCORE_WEIGHTS = pd.Series(
+    {
+        "forward_pe_perc_rank": 0.70,
+        "implied_forward_eps_growth_perc_rank": 0.30,
+    }
+)
+
 TOTAL_SCORE_WEIGHTS = {
     "quality_score": 0.45,
     "growth_score": 0.10,
@@ -206,6 +239,7 @@ DEFAULT_SCORING_PROFILE = {
     "growth_weights": GROWTH_WEIGHTS.to_dict(),
     "valuation_weights": VALUATION_WEIGHTS.to_dict(),
     "risk_weights": RISK_WEIGHTS.to_dict(),
+    "forward_score_weights": FORWARD_SCORE_WEIGHTS.to_dict(),
     "total_score_weights": TOTAL_SCORE_WEIGHTS,
     "valuation_discount_direction": "higher_current_to_median_ratio_scores_better_current_behavior",
 }
@@ -515,6 +549,9 @@ def get_scores(df_watchlist_comparison, scoring_profile=None):
         scoring_profile, "valuation_weights", VALUATION_WEIGHTS
     )
     risk_weights = get_scoring_weights(scoring_profile, "risk_weights", RISK_WEIGHTS)
+    forward_score_weights = get_scoring_weights(
+        scoring_profile, "forward_score_weights", FORWARD_SCORE_WEIGHTS
+    )
     total_score_weights = get_scoring_weights(
         scoring_profile, "total_score_weights", TOTAL_SCORE_WEIGHTS
     )
@@ -533,6 +570,9 @@ def get_scores(df_watchlist_comparison, scoring_profile=None):
         .where(df_watchlist_comparison_clean["debt_to_equity"] >= 0, 5)
         .clip(upper=5)
     )
+    for forward_column in ["forward_pe", "implied_forward_eps_growth"]:
+        if forward_column not in df_watchlist_comparison_clean.columns:
+            df_watchlist_comparison_clean[forward_column] = pd.NA
 
     df_quality_score_components = pd.DataFrame()
     df_quality_score_components["ttm_roic_perc_rank"] = (
@@ -632,6 +672,22 @@ def get_scores(df_watchlist_comparison, scoring_profile=None):
     df_watchlist_comparison_clean["risk_score"] = get_weighted_score(
         df_risk_score_components, risk_weights
     )
+
+    df_forward_score_components = pd.DataFrame()
+    df_forward_score_components["forward_pe_perc_rank"] = (
+        df_watchlist_comparison_clean["forward_pe"].rank(pct=True, ascending=False)
+        * 100
+    )
+    df_forward_score_components["implied_forward_eps_growth_perc_rank"] = (
+        df_watchlist_comparison_clean["implied_forward_eps_growth"].rank(pct=True) * 100
+    )
+    df_watchlist_comparison_clean["forward_score"] = get_weighted_score(
+        df_forward_score_components, forward_score_weights
+    )
+    df_watchlist_comparison_clean["forward_coverage"] = get_component_coverage(
+        df_forward_score_components
+    )
+
     df_watchlist_comparison_clean["history_coverage"] = get_component_coverage(
         df_watchlist_comparison_clean[
             [
@@ -718,6 +774,7 @@ def run_comparisons(args, db_connection, scoring_profile):
                 df_valuation_metrics = TableValuationMetrics.get_from(
                     ticker, db_connection, valuation_start_time
                 )
+                df_forward_metrics = TableForwardMetrics.get_from(ticker, db_connection)
 
                 df_time_series_daily_adjusted = get_time_series_daily_adjusted(
                     ticker, time_series_start_time
@@ -734,6 +791,9 @@ def run_comparisons(args, db_connection, scoring_profile):
                     get_latest_valuation(df_valuation_metrics, ticker)
                 )
                 comparison_dict.update(
+                    get_latest_forward_metrics(df_forward_metrics, ticker)
+                )
+                comparison_dict.update(
                     get_trailing_average_metrics(
                         df_operational_metrics, df_valuation_metrics
                     )
@@ -741,12 +801,12 @@ def run_comparisons(args, db_connection, scoring_profile):
 
                 comparison_rows.append(comparison_dict)
                 df_combined_comparison = pd.DataFrame([comparison_dict])
-                df_combined_comparison = df_combined_comparison.dropna()
 
                 df_calculated_all[ticker] = {
                     "is_benchmark": False,
                     "operational_metrics": df_operational_metrics,
                     "valuation_metrics": df_valuation_metrics,
+                    "forward_metrics": df_forward_metrics,
                     "combined_comparison": df_combined_comparison,
                     "time_series_daily_adj": df_time_series_daily_adjusted,
                 }
@@ -771,6 +831,7 @@ def run_comparisons(args, db_connection, scoring_profile):
                 "is_benchmark": True,
                 "operational_metrics": pd.DataFrame(),
                 "valuation_metrics": pd.DataFrame(),
+                "forward_metrics": pd.DataFrame(),
                 "combined_comparison": pd.DataFrame(),
                 "time_series_daily_adj": df_index_time_series_daily,
             }
@@ -809,30 +870,20 @@ def run_comparisons(args, db_connection, scoring_profile):
                     df_watchlist_stock_comparison = df_comparison
 
                 if not df_watchlist_stock_comparison.empty:
-                    create_graph_figures(
-                        "{} {}".format(watchlist_name, operational_figure["title"]),
+                    comparison_figures = (
                         operational_figure,
-                        df_watchlist_stock_comparison,
-                        watchlist_calculated_stocks,
-                    )
-                    create_graph_figures(
-                        "{} {}".format(watchlist_name, valuation_figure["title"]),
                         valuation_figure,
-                        df_watchlist_stock_comparison,
-                        watchlist_calculated_stocks,
-                    )
-                    create_graph_figures(
-                        "{} {}".format(watchlist_name, valuation_scatters["title"]),
                         valuation_scatters,
-                        df_watchlist_stock_comparison,
-                        watchlist_calculated_stocks,
-                    )
-                    create_graph_figures(
-                        "{} {}".format(watchlist_name, risk_figure["title"]),
+                        forward_figure,
                         risk_figure,
-                        df_watchlist_stock_comparison,
-                        watchlist_calculated_stocks,
                     )
+                    for figure_def in comparison_figures:
+                        create_graph_figures(
+                            "{} {}".format(watchlist_name, figure_def["title"]),
+                            figure_def,
+                            df_watchlist_stock_comparison,
+                            watchlist_calculated_stocks,
+                        )
                     print(
                         "\r\n\r\n{} : {}".format(
                             watchlist_name, watchlist_stock_tickers
@@ -853,9 +904,11 @@ def run_comparisons(args, db_connection, scoring_profile):
                             "growth_score",
                             "valuation_score",
                             "risk_score",
+                            "forward_score",
                             "total_score",
                             "quality_coverage",
                             "valuation_coverage",
+                            "forward_coverage",
                             "history_coverage",
                             "classification",
                         ]

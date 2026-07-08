@@ -8,13 +8,13 @@ Add a forward-looking overlay without letting analyst estimates overpower the cu
 
 ## Metrics To Add
 
-- [ ] `forward_pe`
+- [x] `forward_pe`
   - Lower is better.
   - Use AlphaVantage `OVERVIEW` field `ForwardPE`.
   - This is sufficient for a first forward-looking scoring upgrade; do not wait for a full consensus-estimates system.
   - Treat negative or zero forward EPS as missing, not as a zero score.
 
-- [ ] `implied_forward_eps_growth`
+- [x] `implied_forward_eps_growth`
   - Higher is better.
   - Suggested formula: `pe_ttm / forward_pe - 1`.
   - This infers whether forward EPS is expected to be above or below trailing EPS.
@@ -137,10 +137,16 @@ This is meant for cases like high-quality miners or commodity producers where tr
 - [ ] Store raw estimate payloads under `data/`, similar to AlphaVantage cache behavior.
   - Phase 1 can reuse existing AlphaVantage `OVERVIEW.json` cache.
 
-- [ ] Add a normalized database table for forward estimates.
-  - Suggested columns:
+- [x] Add a normalized database table for forward estimates.
+  - Phase 1 table: `forward_metrics`.
+  - Implemented columns:
     - `ticker`
     - `date`
+    - `forward_pe`
+    - `implied_forward_eps_growth`
+    - `source`
+    - `updated_at`
+  - Future richer estimate columns:
     - `fiscal_period`
     - `estimate_type`
     - `mean`
@@ -148,11 +154,10 @@ This is meant for cases like high-quality miners or commodity producers where tr
     - `high`
     - `low`
     - `analyst_count`
-    - `source`
 
-- [ ] Add calculated forward metric outputs to the comparison row.
-  - `forward_pe`
-  - `implied_forward_eps_growth`
+- [x] Add calculated forward metric outputs to the comparison row.
+  - [x] `forward_pe`
+  - [x] `implied_forward_eps_growth`
   - `forward_ev_ebit`
   - `forward_ev_ebitda`
   - `forward_fcf_yield`
@@ -161,9 +166,9 @@ This is meant for cases like high-quality miners or commodity producers where tr
   - `eps_revision_90d`
   - `estimate_dispersion`
 
-- [ ] Add coverage fields.
-  - Consider `forward_coverage`.
-  - Penalize or classify tickers with very low forward estimate coverage.
+- [x] Add coverage fields.
+  - [x] Add `forward_coverage`.
+  - [ ] Penalize or classify tickers with very low forward estimate coverage.
 
 - [ ] Keep missing estimates as `NaN`.
   - Let weighted-score availability logic handle missing values.
@@ -193,8 +198,8 @@ Document the intended interpretation after changing the direction.
 
 ## Recommended Rollout
 
-- [ ] Phase 1: Add fields and charts only, with no score impact.
-- [ ] Phase 2: Add forward metrics to a separate `forward_score`.
+- [x] Phase 1: Add fields and charts only, with no score impact.
+- [x] Phase 2: Add forward metrics to a separate `forward_score`.
 - [ ] Phase 3: Blend into `growth_score`, `valuation_score`, and `risk_score`.
 - [ ] Phase 4: Compare old and new rankings across at least two weeks of daily snapshots.
 - [ ] Phase 5: Make the blended score the default if it improves obvious cases without destabilizing rankings.

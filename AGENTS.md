@@ -13,7 +13,7 @@ Python stock-analysis scripts rank `watchlists.json` companies using AlphaVantag
 - `DBConnection.py`: local PostgreSQL engine; reads `.env`, using `INVESTING_DATABASE_URL` first, then `INVESTING_DB_*` or `POSTGRES_*`.
 - `InitDB.py`: local PostgreSQL schema.
 - `TickerData.py`: updates database tables and `data_updates`.
-- `OperationalMetrics.py` / `ValuationMetrics.py`: calculated metrics stored in PostgreSQL.
+- `OperationalMetrics.py` , `ValuationMetrics.py` , `ForwardMetrics.py`: calculated metrics stored in PostgreSQL.
 - `TimeSeriesDaily.py`: stock daily adjusted cache for charts.
 - `IndexData.py`: index catalog plus index daily data for benchmark charts.
 - `Comparisons.py`: `data/*_Comparison.json`, chart PNGs, and daily snapshots.
@@ -25,15 +25,16 @@ Python stock-analysis scripts rank `watchlists.json` companies using AlphaVantag
 - `.env.example` is the commit-safe template for local database settings.
 - AlphaVantage API key comes from `pass show Keys/AlphaVantagePremium`.
 
-## Formatting
+## Checks and Formatting
 
-`uvx ruff format ...`
+- `uvx ruff check ...`
+- `uvx ruff format ...`
 
 ## Side Effects And Guardrails
 
 - AlphaVantage calls can hit API/rate limits.
 - Local PostgreSQL writes are real side effects.
-- Generated `data/` artifacts and local JSON files are ignored; do not commit them unless explicitly requested.
+- Generated `data/` artifacts and local JSON files are ignored.
 - Saved JSON fallback behavior can mask AlphaVantage request failures.
 
 ## Sharp Edges

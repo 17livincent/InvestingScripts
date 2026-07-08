@@ -1,7 +1,7 @@
 {
   "Quality-at-Reasonable-Price": {
     "description": "Current default scoring profile used by Comparisons.py. This is quality-led, with valuation as an important but secondary component.",
-    "forward_metrics_enabled": false,
+    "forward_metrics_enabled": true,
     "valuation_discount_direction": "higher_current_to_median_ratio_scores_better_current_behavior",
     "total_score_weights": {
       "quality_score": 0.45,
@@ -31,6 +31,10 @@
       "debt_to_equity_perc_rank": 0.4,
       "ttm_fcf_margin_perc_rank": 0.4,
       "ttm_operating_margin_perc_rank": 0.2
+    },
+    "forward_score_weights": {
+      "forward_pe_perc_rank": 0.7,
+      "implied_forward_eps_growth_perc_rank": 0.3
     }
   },
   "Value-Oriented": {
@@ -66,6 +70,10 @@
       "debt_to_equity_perc_rank": 0.4,
       "ttm_fcf_margin_perc_rank": 0.4,
       "ttm_operating_margin_perc_rank": 0.2
+    },
+    "forward_score_weights": {
+      "forward_pe_perc_rank": 0.7,
+      "implied_forward_eps_growth_perc_rank": 0.3
     },
     "forward_metric_rules": {
       "forward_pe_source": "AlphaVantage OVERVIEW.ForwardPE",
