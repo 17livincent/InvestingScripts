@@ -5,9 +5,7 @@ import json
 import requests
 import subprocess
 from pathlib import Path
-import pandas as pd
 import time
-import argparse
 
 ALPHAVANTAGE_QUERY_URL = 'https://www.alphavantage.co/query'
 MAX_REQUEST_ATTEMPTS = 3

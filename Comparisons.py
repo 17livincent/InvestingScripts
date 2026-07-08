@@ -379,9 +379,9 @@ def create_graph_figures(title, figure_def, df_comparison, df_data):
             graph_ax.legend(
                 handles, labels, loc="center left", fontsize=8, bbox_to_anchor=(1, 0.5)
             )
-        if graph_x_y["grid"] == True:
+        if graph_x_y["grid"]:
             graph_ax.grid(True, alpha=0.3)
-        if graph_x_y["percentFormat"] == True:
+        if graph_x_y["percentFormat"]:
             graph_ax.yaxis.set_major_formatter(PercentFormatter(1.0))
 
     for unused_ax in axes[graph_count:]:
@@ -396,7 +396,7 @@ def create_graph_figures(title, figure_def, df_comparison, df_data):
 def post_process_valuation_metrics(df_data):
     try:
         df_data["ev_fcf"] = df_data["ev_fcf"].clip(upper=200)
-    except KeyError as e:
+    except KeyError:
         pass
 
 
@@ -763,7 +763,7 @@ def run_comparisons(args, db_connection, scoring_profile):
         for ticker in stock_tickers:
             print(f"Gathering {ticker}")
             try:
-                if args.skip_update == False:
+                if not args.skip_update:
                     add_update_ticker(
                         ticker, db_connection, run_time - timedelta(weeks=52 * 7)
                     )

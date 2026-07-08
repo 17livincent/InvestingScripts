@@ -35,7 +35,7 @@ from DBConnection import get_db_engine
 from pathlib import Path
 import json
 import pandas as pd
-from datetime import datetime, timezone, date
+from datetime import datetime, timezone
 import argparse
 
 SAVED_JSON_PATH = "data/AlphaVantage/{}/{}.json"
@@ -142,7 +142,7 @@ class DataUpdates:
     @staticmethod
     def check_needs_update(table_name, last_update_datetime):
         needs_update = True
-        if last_update_datetime == None:
+        if last_update_datetime is None:
             needs_update = True
         elif last_update_datetime.date() == datetime.now(timezone.utc).date():
             needs_update = False
@@ -287,7 +287,7 @@ class TableFundamentals:
             TABLE_NAME_FUNDAMENTALS, ticker_name
         )
 
-        if minimum_date != None:
+        if minimum_date is not None:
             min_date_str = minimum_date.strftime("%Y-%m-%d")
             query_str += (
                 " AND (date >= '{}' OR date = "
@@ -372,7 +372,7 @@ class TableFundamentals:
         df_latest_date = read_db_query(
             check_latest_date, db_connection, params={"ticker_name": ticker_name}
         )
-        if df_latest_date["max"].iloc[0] == None:
+        if df_latest_date["max"].iloc[0] is None:
             minimum_date = get_naive_datetime(minimum_date)
             if minimum_date is not None:
                 df_fundamentals = df_fundamentals[
@@ -397,7 +397,7 @@ class TableOperationalMetrics:
         df_latest_date = read_db_query(
             check_latest_date, db_connection, params={"ticker_name": ticker_name}
         )
-        if df_latest_date["max"].iloc[0] != None:
+        if df_latest_date["max"].iloc[0] is not None:
             latest_date = pd.to_datetime(df_latest_date["max"]).iloc[0]
         return latest_date
 
@@ -409,7 +409,7 @@ class TableOperationalMetrics:
             TABLE_NAME_OPERATIONAL_METRICS, ticker_name
         )
 
-        if minimum_date != None:
+        if minimum_date is not None:
             min_date_str = minimum_date.strftime("%Y-%m-%d")
             query_str += (
                 " AND (date >= '{}' OR date = "
@@ -480,7 +480,7 @@ class TableOperationalMetrics:
         minimum_date = None
         upsert_start_date = None
 
-        if latest_date != None:
+        if latest_date is not None:
             latest_date = get_naive_datetime(latest_date)
             minimum_date = latest_date - pd.DateOffset(
                 months=3 * OPERATIONAL_METRICS_CONTEXT_QUARTERS
@@ -496,7 +496,7 @@ class TableOperationalMetrics:
         operational_metrics = calculate_operational_metrics(df_fundamentals)
         operational_metrics["ticker"] = ticker_name
 
-        if upsert_start_date != None:
+        if upsert_start_date is not None:
             operational_metrics = operational_metrics[
                 operational_metrics["date"] >= upsert_start_date
             ]
@@ -515,7 +515,7 @@ class TableSharesOutstanding:
             TABLE_NAME_SHARES_OUTSTANDING, ticker_name
         )
 
-        if minimum_date != None:
+        if minimum_date is not None:
             min_date_str = minimum_date.strftime("%Y-%m-%d")
             query_str += (
                 " AND (date >= '{}' OR date = "
@@ -584,7 +584,7 @@ class TableSharesOutstanding:
         df_latest_date = read_db_query(
             check_latest_date, db_connection, params={"ticker_name": ticker_name}
         )
-        if df_latest_date["max"].iloc[0] == None:
+        if df_latest_date["max"].iloc[0] is None:
             minimum_date = get_naive_datetime(minimum_date)
             if minimum_date is not None:
                 df_shares_outstanding = df_shares_outstanding[
@@ -611,7 +611,7 @@ class TablePricesWeekly:
         df_latest_date = read_db_query(
             check_latest_date, db_connection, params={"ticker_name": ticker_name}
         )
-        if df_latest_date["max"].iloc[0] != None:
+        if df_latest_date["max"].iloc[0] is not None:
             latest_date = pd.to_datetime(df_latest_date["max"], utc=True).iloc[0]
         return latest_date
 
@@ -623,7 +623,7 @@ class TablePricesWeekly:
             TABLE_NAME_PRICES_WEEKLY, ticker_name
         )
 
-        if minimum_date != None:
+        if minimum_date is not None:
             query_str += " AND date >= '{}'".format(minimum_date.strftime("%Y-%m-%d"))
 
         df_prices_weekly = read_db_query(query_str, db_connection)
@@ -682,7 +682,7 @@ class TablePricesWeekly:
         df_latest_date = read_db_query(
             check_latest_date, db_connection, params={"ticker_name": ticker_name}
         )
-        if df_latest_date["max"].iloc[0] == None:
+        if df_latest_date["max"].iloc[0] is None:
             minimum_date = get_naive_datetime(minimum_date)
             if minimum_date is not None:
                 df_prices_weekly = df_prices_weekly[
@@ -705,7 +705,7 @@ class TableValuationMetrics:
         df_latest_date = read_db_query(
             check_latest_date, db_connection, params={"ticker_name": ticker_name}
         )
-        if df_latest_date["max"].iloc[0] != None:
+        if df_latest_date["max"].iloc[0] is not None:
             latest_date = pd.to_datetime(df_latest_date["max"], utc=True).iloc[0]
         return latest_date
 
@@ -766,7 +766,7 @@ class TableValuationMetrics:
         latest_date = TableValuationMetrics.get_latest_date(ticker_name, db_connection)
         minimum_date = None
 
-        if latest_date != None:
+        if latest_date is not None:
             minimum_date = latest_date.replace(tzinfo=None)
 
         df_fundamentals = TableFundamentals.get_from(
@@ -787,7 +787,7 @@ class TableValuationMetrics:
         df_valuation_metrics = calculate_valuation_metrics(
             df_operational_metrics, df_prices_weekly, df_shares_outstanding
         )
-        if latest_date != None:
+        if latest_date is not None:
             df_valuation_metrics = df_valuation_metrics[
                 df_valuation_metrics["date"] > minimum_date
             ]
@@ -908,7 +908,7 @@ def add_update_ticker(ticker_name, db_connection, minimum_date: datetime = None)
 
     last_update = last_updates.get(TABLE_COMPANIES_NAME)
     needs_updated = DataUpdates.check_needs_update(TABLE_COMPANIES_NAME, last_update)
-    if needs_updated == True:
+    if needs_updated:
         try:
             TableCompanies.add(ticker_name, db_connection)
         except FileNotFoundError as e:
@@ -920,16 +920,10 @@ def add_update_ticker(ticker_name, db_connection, minimum_date: datetime = None)
 
     last_updated_fundamentals = last_updates.get(TABLE_NAME_FUNDAMENTALS)
     last_update_operational_metrics = last_updates.get(TABLE_NAME_OPERATIONAL_METRICS)
-    if (
-        DataUpdates.check_needs_update(
-            TABLE_NAME_FUNDAMENTALS, last_updated_fundamentals
-        )
-        == True
-    ) or (
-        DataUpdates.check_needs_update(
-            TABLE_NAME_OPERATIONAL_METRICS, last_update_operational_metrics
-        )
-        == True
+    if DataUpdates.check_needs_update(
+        TABLE_NAME_FUNDAMENTALS, last_updated_fundamentals
+    ) or DataUpdates.check_needs_update(
+        TABLE_NAME_OPERATIONAL_METRICS, last_update_operational_metrics
     ):
         try:
             TableFundamentals.update(ticker_name, db_connection, minimum_date)
@@ -948,7 +942,7 @@ def add_update_ticker(ticker_name, db_connection, minimum_date: datetime = None)
     needs_updated = DataUpdates.check_needs_update(
         TABLE_NAME_SHARES_OUTSTANDING, last_update
     )
-    if needs_updated == True:
+    if needs_updated:
         try:
             TableSharesOutstanding.update(ticker_name, db_connection, minimum_date)
             need_to_update_valuation_metrics = True
@@ -965,7 +959,7 @@ def add_update_ticker(ticker_name, db_connection, minimum_date: datetime = None)
     needs_updated = DataUpdates.check_needs_update(
         TABLE_NAME_PRICES_WEEKLY, last_update
     )
-    if needs_updated == True:
+    if needs_updated:
         try:
             TablePricesWeekly.update(ticker_name, db_connection, minimum_date)
             need_to_update_valuation_metrics = True
@@ -982,7 +976,7 @@ def add_update_ticker(ticker_name, db_connection, minimum_date: datetime = None)
     needs_updated = DataUpdates.check_needs_update(
         TABLE_NAME_VALUATION_METRICS, last_update
     )
-    if (need_to_update_valuation_metrics == True) or (needs_updated == True):
+    if need_to_update_valuation_metrics or needs_updated:
         TableValuationMetrics.update(ticker_name, db_connection)
     else:
         print(

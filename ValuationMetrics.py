@@ -5,7 +5,6 @@ Calculate short-term valuation metrics such as P/E, P/FCF, and EV/EBIT.
 import json
 import pandas as pd
 import numpy as np
-import sys
 
 SHARES_OUTSTANDING_COLUMNS = ["date", "basic_shares", "diluted_shares"]
 
