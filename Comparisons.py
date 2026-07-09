@@ -570,7 +570,7 @@ def get_scores(df_watchlist_comparison, scoring_profile=None):
         .where(df_watchlist_comparison_clean["debt_to_equity"] >= 0, 5)
         .clip(upper=5)
     )
-    for forward_column in ["forward_pe", "implied_forward_eps_growth"]:
+    for forward_column in ["forward_pe", "peg_ratio", "implied_forward_eps_growth"]:
         if forward_column not in df_watchlist_comparison_clean.columns:
             df_watchlist_comparison_clean[forward_column] = pd.NA
 
@@ -678,6 +678,9 @@ def get_scores(df_watchlist_comparison, scoring_profile=None):
         df_watchlist_comparison_clean["forward_pe"].rank(pct=True, ascending=False)
         * 100
     )
+    df_forward_score_components["peg_ratio_perc_rank"] = (
+        df_watchlist_comparison_clean["peg_ratio"].rank(pct=True, ascending=False) * 100
+    )
     df_forward_score_components["implied_forward_eps_growth_perc_rank"] = (
         df_watchlist_comparison_clean["implied_forward_eps_growth"].rank(pct=True) * 100
     )
@@ -703,9 +706,18 @@ def get_scores(df_watchlist_comparison, scoring_profile=None):
         ]
     )
 
-    score_columns = ["quality_score", "growth_score", "valuation_score", "risk_score"]
-    df_watchlist_comparison_clean[score_columns] = df_watchlist_comparison_clean[
-        score_columns
+    score_columns = list(total_score_weights.index)
+    for score_column in score_columns:
+        if score_column not in df_watchlist_comparison_clean.columns:
+            df_watchlist_comparison_clean[score_column] = pd.NA
+
+    core_score_columns = [
+        score_column
+        for score_column in ["quality_score", "growth_score", "valuation_score", "risk_score"]
+        if score_column in score_columns
+    ]
+    df_watchlist_comparison_clean[core_score_columns] = df_watchlist_comparison_clean[
+        core_score_columns
     ].fillna(0)
 
     df_watchlist_comparison_clean["total_score"] = get_weighted_score(

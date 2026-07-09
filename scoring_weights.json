@@ -38,45 +38,47 @@
     }
   },
   "Value-Oriented": {
-    "description": "Recommended value-investing profile. This increases valuation weight, reduces growth weight, uses ForwardPE as a first forward-looking metric, and treats lower current-to-median valuation ratios as better.",
+    "description": "Recommended value-investing profile. This balances durable quality with cash-flow-led valuation, keeps growth modest, and treats lower current-to-median valuation ratios as better.",
     "forward_metrics_enabled": true,
     "valuation_discount_direction": "lower_current_to_median_ratio_scores_better",
     "total_score_weights": {
-      "quality_score": 0.35,
-      "growth_score": 0.05,
-      "valuation_score": 0.4,
-      "risk_score": 0.2
+      "quality_score": 0.325,
+      "valuation_score": 0.325,
+      "risk_score": 0.2,
+      "growth_score": 0.075,
+      "forward_score": 0.075
     },
     "quality_weights": {
-      "ttm_roic_perc_rank": 0.35,
-      "ttm_operating_margin_perc_rank": 0.2,
+      "ttm_roic_perc_rank": 0.4,
+      "quality_consistency_perc_rank": 0.25,
       "ttm_fcf_margin_perc_rank": 0.2,
-      "quality_consistency_perc_rank": 0.25
+      "ttm_operating_margin_perc_rank": 0.15
     },
     "growth_weights": {
-      "revenue_growth_yoy_perc_rank": 0.2,
-      "revenue_growth_yoy_3yr_avg_perc_rank": 0.8
+      "revenue_growth_yoy_3yr_avg_perc_rank": 0.75,
+      "revenue_growth_yoy_perc_rank": 0.25
     },
     "valuation_weights": {
       "pe_ttm_perc_rank": 0.1,
-      "ev_ebit_perc_rank": 0.18,
-      "ev_fcf_perc_rank": 0.22,
-      "pe_ttm_discount_perc_rank": 0.0833,
-      "ev_ebit_discount_perc_rank": 0.0833,
-      "ev_fcf_discount_perc_rank": 0.0834,
-      "forward_pe_perc_rank": 0.25
+      "ev_ebit_perc_rank": 0.2,
+      "ev_fcf_perc_rank": 0.3,
+      "pe_ttm_discount_perc_rank": 0.05,
+      "ev_ebit_discount_perc_rank": 0.15,
+      "ev_fcf_discount_perc_rank": 0.2
     },
     "risk_weights": {
-      "debt_to_equity_perc_rank": 0.4,
-      "ttm_fcf_margin_perc_rank": 0.4,
+      "debt_to_equity_perc_rank": 0.45,
+      "ttm_fcf_margin_perc_rank": 0.35,
       "ttm_operating_margin_perc_rank": 0.2
     },
     "forward_score_weights": {
-      "forward_pe_perc_rank": 0.7,
-      "implied_forward_eps_growth_perc_rank": 0.3
+      "forward_pe_perc_rank": 0.5,
+      "peg_ratio_perc_rank": 0.3,
+      "implied_forward_eps_growth_perc_rank": 0.2
     },
     "forward_metric_rules": {
       "forward_pe_source": "AlphaVantage OVERVIEW.ForwardPE",
+      "peg_ratio_source": "AlphaVantage OVERVIEW.PEGRatio",
       "implied_forward_eps_growth_formula": "pe_ttm / forward_pe - 1",
       "peak_earnings_warning": {
         "enabled": true,
