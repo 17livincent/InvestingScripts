@@ -31,6 +31,10 @@ MIN_HISTORY_OBSERVATIONS = 4
 SCORING_WEIGHTS_FILE = "scoring_weights.json"
 CLASSIFICATIONS_FILE = "data/classifications.md"
 CANDIDATE_CLASSIFICATIONS = ("High quality candidate", "Watchlist quality")
+HIGH_QUALITY_MIN_TOTAL_SCORE = 80
+HIGH_QUALITY_MIN_VALUATION_SCORE = 75
+WATCHLIST_MIN_TOTAL_SCORE = 65
+MIXED_MIN_TOTAL_SCORE = 50
 
 time_frames = {
     "ttm_roic": OPERATIONAL_TIME_FRAME_WEEKS,
@@ -521,7 +525,38 @@ def get_component_coverage(df_score_components):
     return df_score_components.notna().sum(axis=1) / len(df_score_components.columns)
 
 
-def get_score_classification(row):
+def get_absolute_valuation_caps(scoring_profile, classification_key):
+    return (
+        scoring_profile.get("absolute_valuation_caps", {})
+        .get(classification_key, {})
+        .copy()
+    )
+
+
+def passes_absolute_valuation_caps(row, caps):
+    if not caps:
+        return True
+
+    failed_caps = 0
+    max_failed_caps = caps.get("max_failed_caps", 0)
+
+    for cap_key, max_value in caps.items():
+        if cap_key == "max_failed_caps" or not cap_key.endswith("_max"):
+            continue
+
+        metric = cap_key.removesuffix("_max")
+        value = pd.to_numeric(row.get(metric), errors="coerce")
+        if pd.notna(value) and value > max_value:
+            failed_caps += 1
+
+    return failed_caps <= max_failed_caps
+
+
+def get_score_classification(row, scoring_profile=None):
+    scoring_profile = scoring_profile or DEFAULT_SCORING_PROFILE
+    high_quality_caps = get_absolute_valuation_caps(
+        scoring_profile, "high_quality_candidate"
+    )
     minimum_coverage = min(
         row["quality_coverage"], row["valuation_coverage"], row["history_coverage"]
     )
@@ -529,11 +564,15 @@ def get_score_classification(row):
 
     if minimum_coverage < 0.6:
         classification = "Incomplete data"
-    elif row["total_score"] >= 80:
+    elif (
+        row["total_score"] >= HIGH_QUALITY_MIN_TOTAL_SCORE
+        and row["valuation_score"] >= HIGH_QUALITY_MIN_VALUATION_SCORE
+        and passes_absolute_valuation_caps(row, high_quality_caps)
+    ):
         classification = "High quality candidate"
-    elif row["total_score"] >= 65:
+    elif row["total_score"] >= WATCHLIST_MIN_TOTAL_SCORE:
         classification = "Watchlist quality"
-    elif row["total_score"] >= 50:
+    elif row["total_score"] >= MIXED_MIN_TOTAL_SCORE:
         classification = "Mixed"
 
     return classification
@@ -659,6 +698,12 @@ def get_scores(df_watchlist_comparison, scoring_profile=None):
     df_valuation_score_components["ev_fcf_perc_rank"] = (
         df_watchlist_comparison_clean["ev_fcf"].rank(pct=True, ascending=False) * 100
     )
+    if "forward_pe_perc_rank" in valuation_weights.index:
+        df_valuation_score_components["forward_pe_perc_rank"] = (
+            df_watchlist_comparison_clean["forward_pe"]
+            .rank(pct=True, ascending=False)
+            .mul(100)
+        )
     df_watchlist_comparison_clean["pe_ttm_discount"] = get_discount_to_median(
         df_watchlist_comparison_clean["pe_ttm"],
         df_watchlist_comparison_clean["pe_ttm_2yr_median"],
@@ -770,8 +815,8 @@ def get_scores(df_watchlist_comparison, scoring_profile=None):
         df_watchlist_comparison_clean[score_columns], total_score_weights
     )
 
-    df_watchlist_comparison_clean["classification"] = (
-        df_watchlist_comparison_clean.apply(get_score_classification, axis=1)
+    df_watchlist_comparison_clean["classification"] = df_watchlist_comparison_clean.apply(
+        get_score_classification, axis=1, scoring_profile=scoring_profile
     )
 
     df_watchlist_comparison_clean = df_watchlist_comparison_clean.sort_values(
