@@ -11,7 +11,9 @@
         "AXP",
         "FIS",
         "GPN",
-        "PYPL"
+        "PYPL",
+        "FCFS",
+        "FISV"
     ],
     "Banks and Capital Markets": [
         "SPX",
@@ -26,7 +28,10 @@
         "WFC",
         "PNC",
         "TROW",
-        "IBKR"
+        "IBKR",
+        "SEIC",
+        "AMG",
+        "BEN"
     ],
     "Consumer Credit": [
         "SPX",
@@ -41,7 +46,8 @@
         "SOFI",
         "LC",
         "UPST",
-        "WRLD"
+        "WRLD",
+        "AXP"
     ],
     "Mega Cap Software Platforms": [
         "SPX",
@@ -51,7 +57,10 @@
         "CRM",
         "INTU",
         "NOW",
-        "ORCL"
+        "ORCL",
+        "GOOGL",
+        "ADSK",
+        "VRSN"
     ],
     "High Growth Software and AI Apps": [
         "SPX",
@@ -89,7 +98,10 @@
         "MPWR",
         "NXPI",
         "MCHP",
-        "ON"
+        "ON",
+        "SWKS",
+        "QRVO",
+        "RMBS"
     ],
     "Semiconductor Equipment": [
         "SPX",
@@ -130,7 +142,9 @@
         "FIX",
         "EME",
         "MTZ",
-        "NVT"
+        "NVT",
+        "EMR",
+        "ATKR"
     ],
     "Industrial Quality Compounders": [
         "SPX",
