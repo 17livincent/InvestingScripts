@@ -29,6 +29,8 @@ OPERATIONAL_AVG_YEARS = 3
 VALUATION_MEDIAN_YEARS = 2
 MIN_HISTORY_OBSERVATIONS = 4
 SCORING_WEIGHTS_FILE = "scoring_weights.json"
+CLASSIFICATIONS_FILE = "data/classifications.md"
+CANDIDATE_CLASSIFICATIONS = ("High quality candidate", "Watchlist quality")
 
 time_frames = {
     "ttm_roic": OPERATIONAL_TIME_FRAME_WEEKS,
@@ -537,6 +539,45 @@ def get_score_classification(row):
     return classification
 
 
+def save_and_print_candidate_classifications(
+    classification_summaries, output_file=CLASSIFICATIONS_FILE
+):
+    if classification_summaries:
+        df_candidate_classifications = pd.concat(
+            classification_summaries, ignore_index=True
+        )
+    else:
+        df_candidate_classifications = pd.DataFrame()
+
+    print("\r\n\r\nCandidate classifications")
+    with open(output_file, "w") as classifications_file:
+        classifications_file.write("# Candidate classifications\n")
+
+        for classification in CANDIDATE_CLASSIFICATIONS:
+            classifications_file.write("\n## {}\n\n".format(classification))
+            print("\r\n{}:".format(classification))
+
+            if df_candidate_classifications.empty:
+                df_classification = pd.DataFrame()
+            else:
+                df_classification = df_candidate_classifications.loc[
+                    df_candidate_classifications["classification"] == classification
+                ].sort_values(
+                    by=["watchlist", "ticker"],
+                    ascending=[True, True],
+                )
+
+            if df_classification.empty:
+                print("None")
+                classifications_file.write("_None_\n")
+            else:
+                print(df_classification.to_string(index=False))
+                classifications_file.write(df_classification.to_markdown(index=False))
+                classifications_file.write("\n")
+
+    print("Saved candidate classifications to {}.".format(output_file))
+
+
 def get_scores(df_watchlist_comparison, scoring_profile=None):
     scoring_profile = scoring_profile or DEFAULT_SCORING_PROFILE
     quality_weights = get_scoring_weights(
@@ -713,7 +754,12 @@ def get_scores(df_watchlist_comparison, scoring_profile=None):
 
     core_score_columns = [
         score_column
-        for score_column in ["quality_score", "growth_score", "valuation_score", "risk_score"]
+        for score_column in [
+            "quality_score",
+            "growth_score",
+            "valuation_score",
+            "risk_score",
+        ]
         if score_column in score_columns
     ]
     df_watchlist_comparison_clean[core_score_columns] = df_watchlist_comparison_clean[
@@ -854,6 +900,8 @@ def run_comparisons(args, db_connection, scoring_profile):
 
         print(watchlists_json)
 
+        classification_summaries = []
+
         for watchlist_name in watchlists_json:
             watchlist_symbols = watchlists_json[watchlist_name]
 
@@ -928,6 +976,14 @@ def run_comparisons(args, db_connection, scoring_profile):
 
                     print(df_comparison_summary.to_string())
 
+                    df_candidate_classifications = df_comparison_summary.loc[
+                        df_comparison_summary["classification"].isin(
+                            CANDIDATE_CLASSIFICATIONS
+                        )
+                    ].copy()
+                    df_candidate_classifications.insert(0, "watchlist", watchlist_name)
+                    classification_summaries.append(df_candidate_classifications)
+
                     df_comparison_summary.to_markdown(
                         "data/{}.md".format(watchlist_name), index=False
                     )
@@ -945,6 +1001,8 @@ def run_comparisons(args, db_connection, scoring_profile):
                         df_watchlist_stock_comparison,
                         watchlist_calculated,
                     )
+
+        save_and_print_candidate_classifications(classification_summaries)
 
 
 def main():
