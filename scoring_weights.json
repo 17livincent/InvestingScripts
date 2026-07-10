@@ -55,7 +55,7 @@
         "ttm_roic_3yr_avg_min": 0.15,
         "ttm_fcf_margin_3yr_avg_min": 0,
         "ttm_roic_3yr_std_max": 0.15,
-        "max_failed_caps": 1
+        "max_failed_caps": 0
       }
     },
     "total_score_weights": {
