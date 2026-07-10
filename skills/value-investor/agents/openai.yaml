@@ -1,0 +1,4 @@
+interface:
+  display_name: "Value Investor"
+  short_description: "Quality-value stock review"
+  default_prompt: "Use $value-investor to review these tickers: TICKER1, TICKER2."
