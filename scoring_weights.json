@@ -50,6 +50,14 @@
         "max_failed_caps": 1
       }
     },
+    "quality_stability_caps": {
+      "high_quality_candidate": {
+        "ttm_roic_3yr_avg_min": 0.15,
+        "ttm_fcf_margin_3yr_avg_min": 0,
+        "ttm_roic_3yr_std_max": 0.15,
+        "max_failed_caps": 1
+      }
+    },
     "total_score_weights": {
       "valuation_score": 0.45,
       "quality_score": 0.25,

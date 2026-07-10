@@ -525,36 +525,126 @@ def get_component_coverage(df_score_components):
     return df_score_components.notna().sum(axis=1) / len(df_score_components.columns)
 
 
-def get_absolute_valuation_caps(scoring_profile, classification_key):
+def get_classification_caps(scoring_profile, gate_key, classification_key):
     return (
-        scoring_profile.get("absolute_valuation_caps", {})
+        scoring_profile.get(gate_key, {})
         .get(classification_key, {})
         .copy()
     )
 
 
-def passes_absolute_valuation_caps(row, caps):
+def passes_metric_caps(row, caps):
     if not caps:
         return True
 
     failed_caps = 0
     max_failed_caps = caps.get("max_failed_caps", 0)
 
-    for cap_key, max_value in caps.items():
-        if cap_key == "max_failed_caps" or not cap_key.endswith("_max"):
+    for cap_key, cap_value in caps.items():
+        if cap_key == "max_failed_caps":
             continue
 
-        metric = cap_key.removesuffix("_max")
-        value = pd.to_numeric(row.get(metric), errors="coerce")
-        if pd.notna(value) and value > max_value:
-            failed_caps += 1
+        if cap_key.endswith("_max"):
+            metric = cap_key.removesuffix("_max")
+            value = pd.to_numeric(row.get(metric), errors="coerce")
+            if pd.notna(value) and value > cap_value:
+                failed_caps += 1
+            continue
+
+        if cap_key.endswith("_min"):
+            metric = cap_key.removesuffix("_min")
+            value = pd.to_numeric(row.get(metric), errors="coerce")
+            if pd.notna(value) and value < cap_value:
+                failed_caps += 1
 
     return failed_caps <= max_failed_caps
 
 
+def passes_absolute_valuation_caps(row, caps):
+    return passes_metric_caps(row, caps)
+
+
+def passes_quality_stability_caps(row, caps):
+    return passes_metric_caps(row, caps)
+
+
+def get_absolute_valuation_caps(scoring_profile, classification_key):
+    return get_classification_caps(
+        scoring_profile, "absolute_valuation_caps", classification_key
+    )
+
+
+def get_quality_stability_caps(scoring_profile, classification_key):
+    return get_classification_caps(
+        scoring_profile, "quality_stability_caps", classification_key
+    )
+
+
+def get_failed_metric_caps(row, caps):
+    failed_caps = []
+
+    for cap_key, cap_value in caps.items():
+        if cap_key == "max_failed_caps":
+            continue
+
+        if cap_key.endswith("_max"):
+            metric = cap_key.removesuffix("_max")
+            value = pd.to_numeric(row.get(metric), errors="coerce")
+            if pd.notna(value) and value > cap_value:
+                failed_caps.append(cap_key)
+            continue
+
+        if cap_key.endswith("_min"):
+            metric = cap_key.removesuffix("_min")
+            value = pd.to_numeric(row.get(metric), errors="coerce")
+            if pd.notna(value) and value < cap_value:
+                failed_caps.append(cap_key)
+
+    return failed_caps
+
+
+def get_gate_failure_summary(row, gate_caps):
+    failed_caps = []
+
+    for caps in gate_caps:
+        failed_caps.extend(get_failed_metric_caps(row, caps))
+
+    return ", ".join(failed_caps)
+
+
+def add_value_gate_columns(df_watchlist_comparison_clean, scoring_profile):
+    high_quality_valuation_caps = get_absolute_valuation_caps(
+        scoring_profile, "high_quality_candidate"
+    )
+    high_quality_stability_caps = get_quality_stability_caps(
+        scoring_profile, "high_quality_candidate"
+    )
+
+    df_watchlist_comparison_clean["passes_value_gates"] = (
+        df_watchlist_comparison_clean.apply(
+            lambda row: passes_absolute_valuation_caps(row, high_quality_valuation_caps)
+            and passes_quality_stability_caps(row, high_quality_stability_caps),
+            axis=1,
+        )
+    )
+    df_watchlist_comparison_clean["value_gate_failures"] = (
+        df_watchlist_comparison_clean.apply(
+            lambda row: get_gate_failure_summary(
+                row, [high_quality_valuation_caps, high_quality_stability_caps]
+            ),
+            axis=1,
+        )
+    )
+
+    return df_watchlist_comparison_clean
+
+
 def get_score_classification(row, scoring_profile=None):
     scoring_profile = scoring_profile or DEFAULT_SCORING_PROFILE
-    high_quality_caps = get_absolute_valuation_caps(
+    high_quality_valuation_caps = get_absolute_valuation_caps(
+        scoring_profile, "high_quality_candidate"
+    )
+    high_quality_stability_caps = get_quality_stability_caps(
         scoring_profile, "high_quality_candidate"
     )
     minimum_coverage = min(
@@ -567,7 +657,8 @@ def get_score_classification(row, scoring_profile=None):
     elif (
         row["total_score"] >= HIGH_QUALITY_MIN_TOTAL_SCORE
         and row["valuation_score"] >= HIGH_QUALITY_MIN_VALUATION_SCORE
-        and passes_absolute_valuation_caps(row, high_quality_caps)
+        and passes_absolute_valuation_caps(row, high_quality_valuation_caps)
+        and passes_quality_stability_caps(row, high_quality_stability_caps)
     ):
         classification = "High quality candidate"
     elif row["total_score"] >= WATCHLIST_MIN_TOTAL_SCORE:
@@ -815,6 +906,9 @@ def get_scores(df_watchlist_comparison, scoring_profile=None):
         df_watchlist_comparison_clean[score_columns], total_score_weights
     )
 
+    df_watchlist_comparison_clean = add_value_gate_columns(
+        df_watchlist_comparison_clean, scoring_profile
+    )
     df_watchlist_comparison_clean["classification"] = df_watchlist_comparison_clean.apply(
         get_score_classification, axis=1, scoring_profile=scoring_profile
     )
@@ -1015,6 +1109,8 @@ def run_comparisons(args, db_connection, scoring_profile):
                             "valuation_coverage",
                             "forward_coverage",
                             "history_coverage",
+                            # "passes_value_gates",
+                            # "value_gate_failures",
                             "classification",
                         ]
                     ]
